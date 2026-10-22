@@ -1,2 +1,6 @@
 .claude/
 .DS_Store
+
+# Llave maestra privada: solo en este equipo, nunca en GitHub
+llave-maestra/
+*.privada.json

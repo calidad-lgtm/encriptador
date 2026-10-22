@@ -85,6 +85,10 @@
   .drop strong { color: var(--text); word-break: break-all; }
   .drop small { font-size: 13px; }
   .drop input { display: none; }
+  .drop-sm { padding: 16px; }
+  .check { display: flex; align-items: center; gap: 8px; margin-top: 10px; color: var(--muted); font-size: 14px; cursor: pointer; }
+  #mkLoaded { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; }
+  #mkLoaded .link { margin: 0; }
 
   .input-wrap { display: flex; align-items: center; gap: 6px; padding: 4px 4px 4px 12px;
     border: 1px solid var(--border-strong); border-radius: 10px; background: var(--surface-2); }
@@ -180,14 +184,9 @@
     <div class="actions">
       <button class="btn btn-sm" id="installBtn" hidden data-i="download"><span>Instalar</span></button>
       <button class="icon-btn" id="helpBtn" aria-label="Instructivo" title="Instructivo" data-i="help"></button>
-      <button class="icon-btn" id="settingsBtn" aria-label="Configuración" title="Configuración" data-i="settings"></button>
+      <button class="icon-btn" id="masterBtn" hidden aria-label="Recuperación maestra" title="Recuperación maestra" data-i="key"></button>
     </div>
   </header>
-
-  <div class="banner" id="kitBanner" hidden>
-    <span><strong>Guarda tu kit de recuperación.</strong> Te permite abrir tus archivos si alguien pierde la clave.</span>
-    <button class="btn btn-sm" id="bannerKit" data-i="download">Descargar</button>
-  </div>
 
   <nav class="seg" role="tablist">
     <button role="tab" aria-selected="true" data-mode="enc" data-i="lock">Proteger</button>
@@ -206,10 +205,8 @@
       <input type="text" id="key" autocomplete="off" spellcheck="false" aria-labelledby="keyTitle">
       <button class="btn btn-sm" id="gen" type="button" title="Generar otra clave" data-i="refresh"><span>Nueva</span></button>
       <button class="btn btn-sm" id="copy" type="button" title="Copiar clave" data-i="copy"><span>Copiar</span></button>
-      <button class="btn btn-sm" id="cancelRec" type="button" hidden data-i="x"><span>Quitar</span></button>
     </div>
     <p class="hint" id="keyHint">Compártela con quien recibirá el archivo por otro medio (teléfono o WhatsApp).</p>
-    <button class="link" id="useRec" type="button" hidden data-i="key">Olvidé la clave: usar mi código de recuperación</button>
 
     <button class="btn btn-primary btn-block" id="run" disabled>Proteger y descargar</button>
     <div class="msg" id="msg" role="status"></div>
@@ -237,26 +234,41 @@
   </footer>
 </div>
 
-<dialog id="settings" aria-labelledby="settingsTitle">
+<!-- Solo visible con ?maestra o cuando este navegador ya tiene la llave maestra cargada -->
+<dialog id="master" aria-labelledby="masterTitle">
   <div class="dlg-head">
-    <h2 id="settingsTitle">Configuración</h2>
+    <h2 id="masterTitle">Recuperación maestra</h2>
     <button class="icon-btn" data-close aria-label="Cerrar" data-i="x"></button>
   </div>
   <div class="dlg-body">
-    <h3>Código de recuperación</h3>
-    <p>Se agrega en secreto a cada archivo que proteges. Si alguien pierde la clave, este código lo abre. No se muestra en la app y solo se guarda en este equipo.</p>
+    <p>Abre cualquier archivo protegido con esta app aunque se haya perdido su clave. Necesitas tu archivo de llave maestra y su contraseña.</p>
+
+    <div class="step"><span class="num">1</span><h2>Llave maestra</h2></div>
+    <div id="mkLoaded" hidden>
+      <span class="status" data-i="check">Llave guardada en este navegador</span>
+      <button class="link" id="mkForget" type="button">Quitar de este navegador</button>
+    </div>
+    <div id="mkPick">
+      <label class="drop drop-sm" id="mkDrop">
+        <input type="file" id="mkFile" accept=".json,application/json">
+        <span id="mkText"><strong>Elige llave-maestra.privada.json</strong></span>
+      </label>
+      <label class="check"><input type="checkbox" id="mkRemember"> Recordar en este navegador (queda cifrada con tu contraseña)</label>
+    </div>
+
+    <div class="step"><span class="num">2</span><h2>Contraseña de la llave</h2></div>
     <div class="input-wrap">
-      <input type="password" id="rec" readonly autocomplete="off" spellcheck="false" aria-label="Código de recuperación">
-      <button class="btn btn-sm" id="recEye" type="button" data-i="eye"><span>Mostrar</span></button>
-      <button class="btn btn-sm" id="recCopy" type="button" data-i="copy"><span>Copiar</span></button>
+      <input type="password" id="mkPw" autocomplete="off" aria-label="Contraseña de la llave maestra">
     </div>
-    <p class="hint"><span class="status" id="kitStatus"></span></p>
-    <div class="row">
-      <button class="btn" id="kitBtn" data-i="download">Descargar kit</button>
-      <button class="btn" id="editRec" data-i="key">Usar un código existente</button>
-      <button class="btn" id="newRec" data-i="refresh">Generar nuevo</button>
-    </div>
-    <p class="hint">Si tu oficina usa un código común (por ejemplo, uno que guarda la jefatura), ingrésalo con «Usar un código existente». Los archivos ya protegidos siguen abriéndose con el código que tenían.</p>
+
+    <div class="step"><span class="num">3</span><h2>Archivo protegido</h2></div>
+    <label class="drop drop-sm" id="mfDrop">
+      <input type="file" id="mfFile" accept=".html,.htm,.enc">
+      <span id="mfText"><strong>Elige el archivo .protegido.html</strong></span>
+    </label>
+
+    <button class="btn btn-primary btn-block" id="mkRun" disabled>Recuperar y descargar</button>
+    <div class="msg" id="mkMsg" role="status"></div>
   </div>
 </dialog>
 
@@ -281,10 +293,10 @@
     </ol>
     <p>También puedes cargarlo en la pestaña <strong>Abrir</strong> de esta app (acepta <code>.protegido.html</code> y <code>.enc</code>).</p>
     <h3>Si se pierde la clave</h3>
-    <p>En <strong>Abrir</strong>, pulsa «Olvidé la clave: usar mi código de recuperación». Solo funciona en el equipo de quien protegió el archivo, o con su kit de recuperación.</p>
+    <p>Los archivos protegidos con esta app pueden ser recuperados por el área de Calidad, que guarda la llave maestra de la oficina. Pídeselo indicando el archivo.</p>
     <h3>Instalar la app</h3>
     <p><strong>Chrome o Edge:</strong> botón <strong>Instalar</strong> arriba, o el ícono de instalar en la barra de direcciones. <strong>Safari (Mac):</strong> Archivo → Añadir al Dock. <strong>iPhone/iPad:</strong> Compartir → Añadir a pantalla de inicio.</p>
-    <p class="warn"><strong>Importante:</strong> si se pierden la clave y el código de recuperación, el archivo no se podrá abrir. Nadie puede recuperarlo.</p>
+    <p class="warn"><strong>Importante:</strong> guarda bien la clave. Sin ella, solo el área de Calidad puede recuperar el archivo.</p>
   </div>
 </dialog>
 
@@ -292,7 +304,7 @@
 <script id="core">
 const ITER = 250000;
 const enc = s => new TextEncoder().encode(s);
-const MAGIC1 = enc("ENC1"), MAGIC2 = enc("ENC2");
+const MAGIC1 = enc("ENC1"), MAGIC2 = enc("ENC2"), MAGIC3 = enc("ENC3");
 const SLOT = 76;
 
 function generateKey(len = 24) {
@@ -309,9 +321,9 @@ function generateKey(len = 24) {
 // Quita espacios al inicio y final: evita fallos al pegar desde el kit
 const clean = s => s.trim();
 
-async function deriveKey(password, salt) {
+async function deriveKey(password, salt, iterations = ITER) {
   const base = await crypto.subtle.importKey("raw", enc(password), "PBKDF2", false, ["deriveKey"]);
-  return crypto.subtle.deriveKey({ name: "PBKDF2", salt, iterations: ITER, hash: "SHA-256" },
+  return crypto.subtle.deriveKey({ name: "PBKDF2", salt, iterations, hash: "SHA-256" },
     base, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
 }
 
@@ -329,8 +341,9 @@ async function unwrap(slot, password) {
   return new Uint8Array(await crypto.subtle.decrypt({ name: "AES-GCM", iv: slot.slice(16, 28) }, kek, slot.slice(28)));
 }
 
-// Formato ENC2: "ENC2" | slot clave(76) | slot recuperación(76) | iv(12) | AES-GCM( nameLen(2) | name | datos )
-async function encrypt(data, name, password, recovery) {
+// Formato ENC3: "ENC3" | slot clave(76) | id llave maestra(8) | largo(2) | RSA-OAEP(llave) | iv(12) | AES-GCM( nameLen(2) | name | datos )
+// master = { id: Uint8Array(8), key: CryptoKey pública RSA-OAEP }
+async function encrypt(data, name, password, master) {
   const fileKey = rand(32), iv = rand(12);
   const nameBytes = enc(name).slice(0, 65535);
   const plain = new Uint8Array(2 + nameBytes.length + data.length);
@@ -338,13 +351,50 @@ async function encrypt(data, name, password, recovery) {
   plain.set(nameBytes, 2);
   plain.set(data, 2 + nameBytes.length);
   const cipher = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, await aes(fileKey), plain));
-  return concat(MAGIC2, await wrap(fileKey, password), await wrap(fileKey, recovery), iv, cipher);
+  const sealed = new Uint8Array(await crypto.subtle.encrypt({ name: "RSA-OAEP" }, master.key, fileKey));
+  const len = new Uint8Array([sealed.length >> 8, sealed.length & 255]);
+  return concat(MAGIC3, await wrap(fileKey, password), master.id, len, sealed, iv, cipher);
+}
+
+function parse3(d) {
+  let o = 4;
+  const slot = d.slice(o, o += SLOT), id = d.slice(o, o += 8);
+  const n = (d[o] << 8) | d[o + 1]; o += 2;
+  const sealed = d.slice(o, o += n), iv = d.slice(o, o += 12);
+  return { slot, id, sealed, iv, body: d.slice(o) };
+}
+async function openBody(fileKey, iv, body) {
+  try { return new Uint8Array(await crypto.subtle.decrypt({ name: "AES-GCM", iv }, await aes(fileKey), body)); }
+  catch { throw new Error("El archivo está dañado."); }
+}
+function unpack(plain, via) {
+  const n = (plain[0] << 8) | plain[1];
+  return { name: new TextDecoder().decode(plain.slice(2, 2 + n)) || "archivo", bytes: plain.slice(2 + n), via };
+}
+
+// Recupera un archivo ENC3 con la llave maestra privada (sin la clave)
+async function decryptMaster(data, master) {
+  if (!MAGIC3.every((b, i) => data[i] === b))
+    throw new Error("Este archivo fue protegido con una versión anterior, sin llave maestra. Solo se abre con su clave.");
+  const p = parse3(data);
+  if (p.id.some((b, i) => b !== master.id[i])) throw new Error("Este archivo fue protegido con otra llave maestra.");
+  let fileKey;
+  try { fileKey = new Uint8Array(await crypto.subtle.decrypt({ name: "RSA-OAEP" }, master.key, p.sealed)); }
+  catch { throw new Error("La llave maestra no abre este archivo."); }
+  return unpack(await openBody(fileKey, p.iv, p.body), "la llave maestra");
 }
 
 async function decrypt(data, password) {
   const is = m => m.every((b, i) => data[i] === b);
   let plain, via;
-  if (data.length > 4 + 2 * SLOT + 12 && is(MAGIC2)) {
+  if (data.length > 4 + SLOT + 10 + 12 && is(MAGIC3)) {
+    const p = parse3(data);
+    let fileKey;
+    try { fileKey = await unwrap(p.slot, password); }
+    catch { throw new Error("La clave no es correcta. Revísala e inténtalo de nuevo."); }
+    return unpack(await openBody(fileKey, p.iv, p.body), "la clave");
+  } else if (data.length > 4 + 2 * SLOT + 12 && is(MAGIC2)) {
+    // Archivos de la versión con código de recuperación por navegador
     const slots = [[data.slice(4, 4 + SLOT), "la clave"], [data.slice(4 + SLOT, 4 + 2 * SLOT), "el código de recuperación"]];
     let fileKey;
     for (const [slot, label] of slots) {
@@ -363,8 +413,7 @@ async function decrypt(data, password) {
   } else {
     throw new Error("Este archivo no fue creado con este encriptador.");
   }
-  const n = new DataView(plain.buffer).getUint16(0);
-  return { name: new TextDecoder().decode(plain.slice(2, 2 + n)) || "archivo", bytes: plain.slice(2 + n), via };
+  return unpack(plain, via);
 }
 
 function concat(...parts) {
@@ -444,11 +493,19 @@ const store = {
   get: k => { try { return localStorage.getItem(k); } catch { return null; } },
   set: (k, v) => { try { localStorage.setItem(k, v); } catch {} },
 };
-const REC_KEY = "encriptador.recuperacion", KIT_KEY = "encriptador.kitGuardado";
-let rec = store.get(REC_KEY);
-if (!rec) { rec = generateKey(32); store.set(REC_KEY, rec); store.set(KIT_KEY, ""); }
+// Llave maestra PÚBLICA (de llave-publica.json). Solo sirve para proteger, no para abrir.
+// La llave privada que abre los archivos queda fuera de GitHub, en llave-maestra/.
+const MASTER_PUB = {"id":"246cf9cca49a5d7c","spki":"MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEA56Wt0N7CZ7+bkgmzLkRP6/9ompg68Zr+wWWzBkmTDRqcs1hxoxO2XYeMtqECV0nEXpn1w8CIOPvSnk8Pm2xR73a2p//u8QTRBj2EVItO64PbesE8VnBI/sZDaGBnax9bk72LJ26r0oJmdzm29jwHB/oLtERo8y1pgmjHhtFCzNV+2xtbW/XQYzOedbzxl4kW4SzHdwYP8L8b3UaP2D9JVC6K/SvIM+cGpr5XPNgUKHMHSxunBboyiVGHkqTusaXVsAvuFGnZ+PBb9+SsqCBCSUx83lFmmFytHx75CB1I3dK/W+zPprI6worzrndf30TijnlCLKnZ0Ydt+hPTOu4b65aXN+V3jw4CCeRd2cUiO7R5YAEku1V6jIOf+VV0HqImMbetYZNcQkityCAYGhxvhQKaDYsxtMqov2mCN6o3MHQEZAKyEkjoxb0We9dkvqyflZIVeb4WqCXrp9S5RG40RV1GX5/eW2CeN4a2Bhteh4FjncpZUVzMjwYCva4GQaYJAgMBAAE="};
+let masterPub = null;
+async function getMasterPub() {
+  if (!MASTER_PUB) throw new Error("Falta configurar la llave maestra de la app.");
+  return masterPub ??= {
+    id: Uint8Array.from(MASTER_PUB.id.match(/../g), h => parseInt(h, 16)),
+    key: await crypto.subtle.importKey("spki", b64dec(MASTER_PUB.spki), { name: "RSA-OAEP", hash: "SHA-256" }, false, ["encrypt"]),
+  };
+}
 
-let mode = "enc", file = null, useRec = false, lastGuide = null, lastKey = "";
+let mode = "enc", file = null, lastGuide = null, lastKey = "";
 
 // --- Modo Proteger / Abrir ---
 const TEXT = {
@@ -467,45 +524,35 @@ function setMode(m) {
   $("key").placeholder = t.placeholder;
   $("file").accept = m === "dec" ? ".html,.htm,.enc" : "";
   $("gen").hidden = $("copy").hidden = m === "dec";
-  $("useRec").hidden = m === "enc";
   $("key").value = m === "enc" ? generateKey() : "";
-  setUseRec(false);
   setFile(null);
   $("result").hidden = true; $("form").hidden = false;
 }
 document.querySelectorAll(".seg button").forEach(b => b.onclick = () => setMode(b.dataset.mode));
 
-function setUseRec(on) {
-  useRec = on;
-  $("key").disabled = on;
-  $("cancelRec").hidden = !on;
-  $("useRec").hidden = on || mode === "enc";
-  if (on) { $("key").value = ""; $("key").placeholder = "Se usará tu código de recuperación"; }
-  else $("key").placeholder = TEXT[mode].placeholder;
-  refresh();
-}
-$("useRec").onclick = () => setUseRec(true);
-$("cancelRec").onclick = () => { setUseRec(false); $("key").focus(); };
-
 // --- Archivo ---
+// Zona para soltar/elegir archivo; showFile(f) pinta el nombre en textEl
+function makeDrop(dropEl, inputEl, onFile) {
+  inputEl.onchange = e => onFile(e.target.files[0]);
+  dropEl.ondragover = e => { e.preventDefault(); dropEl.classList.add("over"); };
+  dropEl.ondragleave = () => dropEl.classList.remove("over");
+  dropEl.ondrop = e => { e.preventDefault(); dropEl.classList.remove("over"); onFile(e.dataTransfer.files[0]); };
+}
+function showFile(dropEl, textEl, f, emptyHtml) {
+  dropEl.classList.toggle("has-file", !!f);
+  if (!f) return textEl.innerHTML = emptyHtml;
+  textEl.innerHTML = `<strong></strong><br><small>${fmtSize(f.size)} · haz clic para cambiarlo</small>`;
+  textEl.querySelector("strong").textContent = f.name;
+}
+
 function setFile(f) {
   file = f || null;
-  $("drop").classList.toggle("has-file", !!file);
-  if (file) {
-    $("dropText").innerHTML = `<strong></strong><br><small>${fmtSize(file.size)} · haz clic para cambiarlo</small>`;
-    $("dropText").querySelector("strong").textContent = file.name;
-  } else {
-    $("dropText").innerHTML = "<strong>Arrastra un archivo aquí</strong><br><small>o haz clic para elegirlo</small>";
-    $("file").value = "";
-  }
+  if (!file) $("file").value = "";
+  showFile($("drop"), $("dropText"), file, "<strong>Arrastra un archivo aquí</strong><br><small>o haz clic para elegirlo</small>");
   setMsg("");
   refresh();
 }
-$("file").onchange = e => setFile(e.target.files[0]);
-const drop = $("drop");
-drop.ondragover = e => { e.preventDefault(); drop.classList.add("over"); };
-drop.ondragleave = () => drop.classList.remove("over");
-drop.ondrop = e => { e.preventDefault(); drop.classList.remove("over"); setFile(e.dataTransfer.files[0]); };
+makeDrop($("drop"), $("file"), setFile);
 
 // --- Clave ---
 $("key").oninput = refresh;
@@ -522,18 +569,8 @@ async function copyText(text, btn) {
   setTimeout(() => label.textContent = old, 1500);
 }
 
-function password() { return mode === "dec" && useRec ? rec : $("key").value; }
-let sameShown = false;
-function refresh() {
-  const pw = clean(password());
-  const same = !!(mode === "enc" && pw && pw === clean(rec));
-  $("run").disabled = !file || !pw || same;
-  // La clave no puede ser igual al código de recuperación (no se revela por qué)
-  if (same) setMsg("Esa clave no se puede usar. Elige otra.", "err");
-  else if (sameShown) setMsg("");
-  sameShown = same;
-}
-function setMsg(t, cls = "") { $("msg").textContent = t; $("msg").className = "msg " + cls; }
+function refresh() { $("run").disabled = !file || !clean($("key").value); }
+function setMsg(t, cls = "", el = $("msg")) { el.textContent = t; el.className = "msg " + cls; }
 function setBusy(on) {
   const b = $("run");
   if (on) { b.dataset.busy = "1"; b.disabled = true; b.innerHTML = I("spinner", "spin") + "Procesando…"; }
@@ -548,7 +585,7 @@ $("run").onclick = async () => {
   try {
     const data = new Uint8Array(await file.arrayBuffer());
     if (mode === "enc") {
-      const out = await encrypt(data, file.name, $("key").value, rec);
+      const out = await encrypt(data, file.name, $("key").value, await getMasterPub());
       const outName = file.name + ".protegido.html";
       download(enc(buildProtectedPage(file.name, file.size, out)), outName, "text/html");
       lastKey = clean($("key").value);
@@ -556,14 +593,12 @@ $("run").onclick = async () => {
       $("resultName").textContent = "Se descargó " + outName;
       $("form").hidden = true; $("result").hidden = false;
     } else {
-      const { name, bytes, via } = await decrypt(extractPayload(data), password());
+      const { name, bytes } = await decrypt(extractPayload(data), $("key").value);
       download(bytes, name);
-      setMsg(`Listo. Se descargó "${name}"` + (via === "la clave" ? "." : " (abierto con tu código de recuperación)."), "ok");
+      setMsg(`Listo. Se descargó "${name}".`, "ok");
     }
   } catch (e) {
-    setMsg(useRec && /clave no es correcta/.test(e.message)
-      ? "Tu código de recuperación no abre este archivo. Fue protegido con otro código."
-      : e.message || "Ocurrió un error.", "err");
+    setMsg(e.message || "Ocurrió un error.", "err");
   } finally { setBusy(false); }
 };
 $("againBtn").onclick = () => setMode("enc");
@@ -578,50 +613,77 @@ function extractPayload(data) {
   return data;
 }
 
-// --- Configuración: código de recuperación ---
-function renderSettings() {
-  $("rec").value = rec;
-  $("rec").type = "password"; $("rec").readOnly = true;
-  $("recEye").querySelector("span").textContent = "Mostrar";
-  const saved = store.get(KIT_KEY) === "1";
-  $("kitStatus").className = "status" + (saved ? "" : " pending");
-  $("kitStatus").innerHTML = I(saved ? "check" : "x") + (saved ? "Kit de recuperación descargado" : "Aún no descargas el kit de recuperación");
-  $("kitBanner").hidden = saved;
+// --- Recuperación maestra (oculta: solo con ?maestra o si este navegador ya guardó la llave) ---
+const MK_STORE = "encriptador.llaveMaestra";
+let mkJson = store.get(MK_STORE), mkFileJson = null, mfFile = null;
+
+function renderMaster() {
+  $("masterBtn").hidden = !(mkJson || new URLSearchParams(location.search).has("maestra"));
+  $("mkLoaded").hidden = !mkJson;
+  $("mkPick").hidden = !!mkJson;
+  $("mkRun").disabled = !(mkJson || mkFileJson) || !$("mkPw").value || !mfFile;
 }
-$("recEye").onclick = () => {
-  const show = $("rec").type === "password";
-  $("rec").type = show ? "text" : "password";
-  $("recEye").querySelector("span").textContent = show ? "Ocultar" : "Mostrar";
+makeDrop($("mkDrop"), $("mkFile"), async f => {
+  mkFileJson = null;
+  showFile($("mkDrop"), $("mkText"), f, "<strong>Elige llave-maestra.privada.json</strong>");
+  try {
+    const text = await f.text();
+    if (JSON.parse(text).tipo !== "encriptador-llave-maestra") throw 0;
+    mkFileJson = text; setMsg("", "", $("mkMsg"));
+  } catch { setMsg("Ese archivo no es una llave maestra del Encriptador.", "err", $("mkMsg")); }
+  renderMaster();
+});
+makeDrop($("mfDrop"), $("mfFile"), f => {
+  mfFile = f || null;
+  showFile($("mfDrop"), $("mfText"), mfFile, "<strong>Elige el archivo .protegido.html</strong>");
+  setMsg("", "", $("mkMsg")); renderMaster();
+});
+$("mkPw").oninput = renderMaster;
+$("mkPw").onkeydown = e => { if (e.key === "Enter" && !$("mkRun").disabled) $("mkRun").click(); };
+$("mkForget").onclick = () => {
+  try { localStorage.removeItem(MK_STORE); } catch {}
+  mkJson = null; renderMaster();
 };
-$("recCopy").onclick = e => copyText(rec, e.currentTarget);
-$("kitBtn").onclick = $("bannerKit").onclick = () => {
-  download(enc(buildKit(rec)), "Encriptador - kit de recuperacion.txt");
-  store.set(KIT_KEY, "1");
-  renderSettings();
-};
-$("newRec").onclick = () => {
-  if (!confirm("¿Generar un código de recuperación nuevo?\n\nLos archivos ya protegidos solo se podrán recuperar con el código anterior (guárdalo si lo necesitas). Deberás descargar un kit nuevo.")) return;
-  saveRec(generateKey(32));
-};
-$("editRec").onclick = () => {
-  const v = prompt("Pega el código de recuperación que quieres usar (mínimo 12 caracteres):");
-  if (v === null) return;
-  if (clean(v).length < 12) return alert("El código es muy corto. Debe tener al menos 12 caracteres.");
-  saveRec(clean(v));
-};
-function saveRec(v) {
-  rec = v;
-  store.set(REC_KEY, rec); store.set(KIT_KEY, "");
-  renderSettings(); refresh();
+
+// Descifra la llave privada con la contraseña (la llave nunca se guarda descifrada)
+async function unlockMaster(json, pw) {
+  const k = JSON.parse(json);
+  const kek = await deriveKey(pw, b64dec(k.kdf.salt), k.kdf.iteraciones);
+  let pkcs8;
+  try { pkcs8 = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b64dec(k.iv) }, kek, b64dec(k.datos)); }
+  catch { throw new Error("La contraseña de la llave maestra no es correcta."); }
+  return {
+    id: Uint8Array.from(k.id.match(/../g), h => parseInt(h, 16)),
+    key: await crypto.subtle.importKey("pkcs8", pkcs8, { name: "RSA-OAEP", hash: "SHA-256" }, false, ["decrypt"]),
+  };
 }
 
+$("mkRun").onclick = async () => {
+  const b = $("mkRun");
+  b.disabled = true; b.innerHTML = I("spinner", "spin") + "Recuperando…";
+  setMsg("", "", $("mkMsg"));
+  try {
+    const json = mkJson || mkFileJson;
+    const master = await unlockMaster(json, $("mkPw").value);
+    const { name, bytes } = await decryptMaster(extractPayload(new Uint8Array(await mfFile.arrayBuffer())), master);
+    download(bytes, name);
+    if (!mkJson && $("mkRemember").checked) { store.set(MK_STORE, json); mkJson = json; }
+    setMsg(`Listo. Se descargó "${name}".`, "ok", $("mkMsg"));
+  } catch (e) {
+    setMsg(e.message || "Ocurrió un error.", "err", $("mkMsg"));
+  } finally {
+    b.textContent = "Recuperar y descargar"; renderMaster();
+  }
+};
+
 // --- Diálogos ---
-$("settingsBtn").onclick = () => { renderSettings(); $("settings").showModal(); };
+$("masterBtn").onclick = () => { renderMaster(); $("master").showModal(); };
 $("helpBtn").onclick = () => $("help").showModal();
 document.querySelectorAll("dialog").forEach(d => {
   d.onclick = e => { if (e.target === d || e.target.closest("[data-close]")) d.close(); };
-  d.addEventListener("close", () => { if (d.id === "settings") { $("rec").type = "password"; } });
 });
+// Al cerrar, olvidar la contraseña escrita
+$("master").addEventListener("close", () => { $("mkPw").value = ""; renderMaster(); });
 
 // --- Instalación (PWA) ---
 let installEvent = null;
@@ -672,7 +734,7 @@ function buildProtectedPage(name, size, bytes) {
     </div>
     <button class="btn btn-primary btn-block" id="run" disabled>${I("unlock")}Abrir archivo</button>
     <div class="msg" id="msg" role="status"></div>
-    <p class="warn"><strong>Importante:</strong> si olvidas la clave, el archivo no se podrá abrir. Nadie puede recuperarla; pide a quien te lo envió que lo vuelva a enviar.</p>
+    <p class="warn"><strong>Importante:</strong> si olvidas la clave, el archivo no se podrá abrir. Pide a quien te lo envió que lo vuelva a enviar.</p>
   </section>
   <footer>
     <span>${I("shield")}AES-256</span>
@@ -686,22 +748,6 @@ ${$("viewer").textContent}<\/script>
 </body>
 </html>
 `;
-}
-
-function buildKit(code) {
-  const date = new Date().toLocaleString("es-CL");
-  return `KIT DE RECUPERACIÓN — Encriptador\r\n\r\n` +
-    `Fecha: ${date}\r\n\r\n` +
-    `Código de recuperación:\r\n\r\n    ${code}\r\n\r\n` +
-    `Este código abre cualquier archivo que hayas protegido con el Encriptador\r\n` +
-    `mientras este código estaba activo, aunque se pierda su clave.\r\n\r\n` +
-    `CÓMO USARLO\r\n\r\n` +
-    `  - Abre el archivo protegido (.protegido.html) con doble clic\r\n` +
-    `    y escribe este código en lugar de la clave.\r\n` +
-    `  - O en la app: Abrir → "Olvidé la clave: usar mi código de recuperación".\r\n` +
-    `  - En otro equipo: Configuración → "Usar un código existente" y pega este código.\r\n\r\n` +
-    `Guarda este documento en un lugar seguro y distinto a tus archivos protegidos.\r\n` +
-    `Quien tenga este código puede abrir tus archivos.\r\n`;
 }
 
 function buildGuide(name) {
@@ -723,7 +769,8 @@ function buildGuide(name) {
 }
 
 setMode("enc");
-renderSettings();
+renderMaster();
+if (new URLSearchParams(location.search).has("maestra")) $("master").showModal();
 </script>
 </body>
 </html>
