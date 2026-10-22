@@ -1,6 +1,6 @@
 // Guarda la app para que funcione sin internet. Primero intenta la red (para recibir
 // actualizaciones) y, si no hay conexión, usa la copia guardada.
-const CACHE = "encriptador-v3";
+const CACHE = "encriptador-v4";
 const FILES = [
   "./", "index.html", "manifest.webmanifest",
   "icons/icon.svg", "icons/icon-180.png", "icons/icon-192.png", "icons/icon-512.png",
