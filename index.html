@@ -2,6 +2,8 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Encriptador</title>
 <meta name="description" content="Protege archivos con una clave. Funciona sin internet y nada sale de tu equipo.">
@@ -87,6 +89,20 @@
   .drop input { display: none; }
   .drop-sm { padding: 16px; }
   .drop .pick { margin-top: 12px; }
+  .meter { height: 5px; margin-top: 10px; border-radius: 3px; background: var(--border); overflow: hidden; }
+  .meter span { display: block; height: 100%; width: 0; border-radius: 3px; background: var(--muted); transition: width .2s, background .2s; }
+  .meter.weak span { background: var(--err); }
+  .meter.good span { background: #d49b1a; }
+  .meter.great span { background: var(--ok); }
+  .hint.bad { color: var(--err); }
+  .opts { margin-top: 16px; border: 1px solid var(--border); border-radius: 10px; padding: 0 14px; background: var(--surface-2); }
+  .opts summary { display: flex; align-items: center; gap: 8px; padding: 11px 0; cursor: pointer; font-size: 14px; font-weight: 600; }
+  .opts summary svg { width: 16px; height: 16px; color: var(--accent); }
+  .opts[open] { padding-bottom: 12px; }
+  .opts .check { align-items: flex-start; margin-top: 8px; color: var(--text); }
+  .opts .check input { margin-top: 3px; }
+  .opts small { color: var(--muted); }
+  .opt-title { margin: 14px 0 0; font-size: 13px; font-weight: 600; color: var(--muted); }
   .check { display: flex; align-items: center; gap: 8px; margin-top: 10px; color: var(--muted); font-size: 14px; cursor: pointer; }
   #mkLoaded { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; }
   #mkLoaded .link, .unlocked .link { margin: 0; }
@@ -224,8 +240,18 @@
       <input type="text" id="key" autocomplete="off" spellcheck="false" aria-labelledby="keyTitle">
       <button class="btn btn-sm" id="gen" type="button" title="Generar otra clave" data-i="refresh"><span>Nueva</span></button>
       <button class="btn btn-sm" id="copy" type="button" title="Copiar clave" data-i="copy"><span>Copiar</span></button>
+      <button class="btn btn-sm" id="eye" type="button" title="Mostrar u ocultar la clave" data-i="eye" hidden><span>Mostrar</span></button>
     </div>
-    <p class="hint" id="keyHint">Compártela con quien recibirá el archivo por otro medio (teléfono o WhatsApp).</p>
+    <div class="meter" id="meter"><span id="meterBar"></span></div>
+    <p class="hint" id="keyHint"></p>
+
+    <details class="opts" id="opts">
+      <summary data-i="shield">Opciones de seguridad</summary>
+      <label class="check"><input type="checkbox" id="optHideName" checked> <span>Ocultar el nombre del documento <small>(recomendado: solo se ve al abrirlo con la clave)</small></span></label>
+      <p class="opt-title">Tipo de archivo protegido</p>
+      <label class="check"><input type="radio" name="fmt" id="optHtml" checked> <span><b>Se abre solo (.html)</b> · cómodo: trae instrucciones y se abre con doble clic, sin internet</span></label>
+      <label class="check"><input type="radio" name="fmt" id="optEnc"> <span><b>Solo con esta app (.enc)</b> · máxima seguridad: no contiene código, nadie puede alterarlo para robar la clave</span></label>
+    </details>
 
     <button class="btn btn-primary btn-block" id="run" disabled>Proteger y descargar</button>
     <div class="msg" id="msg" role="status"></div>
@@ -236,7 +262,7 @@
     <h2>Archivo protegido listo</h2>
     <p id="resultName"></p>
     <ol class="next">
-      <li><span><strong>Envía el archivo.</strong> Ya incluye las instrucciones para abrirlo.</span></li>
+      <li><span id="resultSend"></span></li>
       <li><span><strong>Comparte la clave</strong> por otro medio, no en el mismo correo.</span>
         <button class="btn btn-sm" id="copyResult" data-i="copy"><span>Copiar clave</span></button></li>
     </ol>
@@ -248,7 +274,7 @@
   </section>
 
   <footer>
-    <span data-i="shield">AES-256</span>
+    <span data-i="shield">AES-256-GCM</span>
     <span data-i="offline">Funciona sin internet</span>
     <span data-i="lock">Nada sale de tu equipo</span>
   </footer>
@@ -284,7 +310,7 @@
 
     <div id="mkOpen" hidden>
       <div class="unlocked">
-        <span class="status" data-i="unlock">Desbloqueada · se bloquea al cerrar</span>
+        <span class="status" data-i="unlock">Desbloqueada · se bloquea al cerrar o tras 5 min sin uso</span>
         <button class="link" id="mkLockBtn" type="button">Bloquear ahora</button>
       </div>
 
@@ -292,7 +318,7 @@
       <p>Descarga el original y muestra la clave con que se protegió.</p>
       <label class="drop drop-sm" id="mfDrop">
         <input type="file" id="mfFile" accept=".html,.htm,.enc">
-        <span id="mfText"><strong>Elige el archivo .protegido.html</strong></span>
+        <span id="mfText"><strong>Elige el archivo protegido</strong></span>
       </label>
       <button class="btn btn-primary btn-block" id="mkRun" disabled>Recuperar y ver clave</button>
       <div class="keybox" id="mkKeyBox" hidden>
@@ -318,18 +344,20 @@
   <div class="dlg-body">
     <h3>Proteger un archivo</h3>
     <ol class="steps">
-      <li>En <strong>Proteger</strong>, elige o arrastra uno o varios archivos, o una carpeta completa. Varios archivos o una carpeta se guardan juntos en un <code>.zip</code>.</li>
-      <li>Usa la clave generada o escribe la tuya.</li>
-      <li>Pulsa <strong>Proteger y descargar</strong>. Se descarga un archivo <code>.protegido.html</code> que ya trae las instrucciones para abrirlo.</li>
-      <li>Envía ese archivo. La clave va por otro medio (teléfono o WhatsApp).</li>
+      <li>En <strong>Proteger</strong>, elige o arrastra uno o varios archivos, o una carpeta completa (se guardan juntos en un <code>.zip</code>).</li>
+      <li>Usa la clave generada, o escribe una propia de al menos 16 caracteres.</li>
+      <li>Pulsa <strong>Proteger y descargar</strong>.</li>
+      <li>Envía el archivo. La clave va por otro medio (teléfono o WhatsApp), nunca en el mismo correo.</li>
     </ol>
     <h3>Abrir un archivo recibido</h3>
     <ol class="steps">
-      <li>Abre el archivo <code>.protegido.html</code> con doble clic.</li>
-      <li>Escribe la clave y pulsa <strong>Abrir archivo</strong>.</li>
-      <li>Se descarga el archivo original, listo para usar. Si era una carpeta, llega como <code>.zip</code>: ábrelo con doble clic.</li>
+      <li><strong>.html:</strong> ábrelo con doble clic, escribe la clave y pulsa <strong>Abrir archivo</strong>.</li>
+      <li><strong>.enc:</strong> cárgalo en la pestaña <strong>Abrir</strong> de esta app y escribe la clave.</li>
+      <li>Se descarga el original. Si era una carpeta, llega como <code>.zip</code>: ábrelo con doble clic.</li>
     </ol>
-    <p>También puedes cargarlo en la pestaña <strong>Abrir</strong> de esta app (acepta <code>.protegido.html</code> y <code>.enc</code>).</p>
+    <h3>Seguridad</h3>
+    <p>AES-256-GCM con la clave reforzada por PBKDF2-SHA-256 (1.000.000 de vueltas). Todo ocurre en tu equipo: nada se sube a internet. Si alguien altera un archivo protegido, la app lo detecta y se niega a abrirlo.</p>
+    <p>La opción <strong>.enc</strong> es la más segura: el archivo no lleva código y solo se abre en esta app oficial.</p>
     <h3>Si se pierde la clave</h3>
     <p>Los archivos protegidos con esta app pueden ser recuperados por el área de Calidad, que guarda la llave maestra de la oficina. Pídeselo indicando el archivo.</p>
     <h3>Instalar la app</h3>
@@ -338,686 +366,7 @@
   </div>
 </dialog>
 
-<!-- Núcleo de cifrado: lo usa esta app y se copia dentro de cada archivo protegido -->
-<script id="core">
-const ITER = 250000;
-const enc = s => new TextEncoder().encode(s);
-const MAGIC1 = enc("ENC1"), MAGIC2 = enc("ENC2"), MAGIC3 = enc("ENC3"), MAGIC4 = enc("ENC4");
-const RSA_MAX = 318; // bytes que RSA-OAEP 3072/SHA-256 puede sellar
-const SLOT = 76;
-
-function generateKey(len = 24) {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
-  const out = [];
-  const buf = new Uint8Array(1);
-  while (out.length < len) {
-    crypto.getRandomValues(buf);
-    if (buf[0] < 256 - (256 % chars.length)) out.push(chars[buf[0] % chars.length]); // sin sesgo
-  }
-  return out.join("").match(/.{1,6}/g).join("-");
-}
-
-// Quita espacios al inicio y final: evita fallos al pegar desde el kit
-const clean = s => s.trim();
-
-async function deriveKey(password, salt, iterations = ITER) {
-  const base = await crypto.subtle.importKey("raw", enc(password), "PBKDF2", false, ["deriveKey"]);
-  return crypto.subtle.deriveKey({ name: "PBKDF2", salt, iterations, hash: "SHA-256" },
-    base, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
-}
-
-const aes = raw => crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["encrypt", "decrypt"]);
-const rand = n => crypto.getRandomValues(new Uint8Array(n));
-
-// Envuelve la llave del archivo con una contraseña: salt(16) | iv(12) | AES-GCM(llave)(48) = 76 bytes
-async function wrap(fileKey, password) {
-  const salt = rand(16), iv = rand(12);
-  const kek = await deriveKey(clean(password), salt);
-  return concat(salt, iv, new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, kek, fileKey)));
-}
-async function unwrap(slot, password) {
-  const kek = await deriveKey(clean(password), slot.slice(0, 16));
-  return new Uint8Array(await crypto.subtle.decrypt({ name: "AES-GCM", iv: slot.slice(16, 28) }, kek, slot.slice(28)));
-}
-
-// Formato ENC4: "ENC4" | slot clave(76) | id llave maestra(8) | largo(2) | RSA-OAEP(llave archivo(32) + clave) | iv(12) | AES-GCM( nameLen(2) | name | datos )
-// ENC3 es igual pero sella solo la llave del archivo (se usa si la clave es demasiado larga para sellarla).
-// master = { id: Uint8Array(8), key: CryptoKey pública RSA-OAEP }
-async function encrypt(data, name, password, master) {
-  const fileKey = rand(32), iv = rand(12);
-  const nameBytes = enc(name).slice(0, 65535);
-  const plain = new Uint8Array(2 + nameBytes.length + data.length);
-  new DataView(plain.buffer).setUint16(0, nameBytes.length);
-  plain.set(nameBytes, 2);
-  plain.set(data, 2 + nameBytes.length);
-  const cipher = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, await aes(fileKey), plain));
-  const withKey = concat(fileKey, enc(clean(password)));
-  const keep = withKey.length <= RSA_MAX;
-  const sealed = new Uint8Array(await crypto.subtle.encrypt({ name: "RSA-OAEP" }, master.key, keep ? withKey : fileKey));
-  const len = new Uint8Array([sealed.length >> 8, sealed.length & 255]);
-  return concat(keep ? MAGIC4 : MAGIC3, await wrap(fileKey, password), master.id, len, sealed, iv, cipher);
-}
-
-function parse3(d) {
-  let o = 4;
-  const slot = d.slice(o, o += SLOT), id = d.slice(o, o += 8);
-  const n = (d[o] << 8) | d[o + 1]; o += 2;
-  const sealed = d.slice(o, o += n), iv = d.slice(o, o += 12);
-  return { slot, id, sealed, iv, body: d.slice(o) };
-}
-async function openBody(fileKey, iv, body) {
-  try { return new Uint8Array(await crypto.subtle.decrypt({ name: "AES-GCM", iv }, await aes(fileKey), body)); }
-  catch { throw new Error("El archivo está dañado."); }
-}
-function unpack(plain, via) {
-  const n = (plain[0] << 8) | plain[1];
-  return { name: new TextDecoder().decode(plain.slice(2, 2 + n)) || "archivo", bytes: plain.slice(2 + n), via };
-}
-
-const isMagic = (data, m) => m.every((b, i) => data[i] === b);
-
-// Recupera un archivo ENC3/ENC4 con la llave maestra privada (sin la clave). En ENC4 devuelve también la clave original.
-async function decryptMaster(data, master) {
-  const v4 = isMagic(data, MAGIC4);
-  if (!v4 && !isMagic(data, MAGIC3))
-    throw new Error("Este archivo fue protegido con una versión anterior, sin llave maestra. Solo se abre con su clave.");
-  const p = parse3(data);
-  if (p.id.some((b, i) => b !== master.id[i])) throw new Error("Este archivo fue protegido con otra llave maestra.");
-  let opened;
-  try { opened = new Uint8Array(await crypto.subtle.decrypt({ name: "RSA-OAEP" }, master.key, p.sealed)); }
-  catch { throw new Error("La llave maestra no abre este archivo."); }
-  const result = unpack(await openBody(opened.slice(0, 32), p.iv, p.body), "la llave maestra");
-  result.key = v4 ? new TextDecoder().decode(opened.slice(32)) : null;
-  return result;
-}
-
-async function decrypt(data, password) {
-  const is = m => m.every((b, i) => data[i] === b);
-  let plain, via;
-  if (data.length > 4 + SLOT + 10 + 12 && (is(MAGIC3) || is(MAGIC4))) {
-    const p = parse3(data);
-    let fileKey;
-    try { fileKey = await unwrap(p.slot, password); }
-    catch { throw new Error("La clave no es correcta. Revísala e inténtalo de nuevo."); }
-    return unpack(await openBody(fileKey, p.iv, p.body), "la clave");
-  } else if (data.length > 4 + 2 * SLOT + 12 && is(MAGIC2)) {
-    // Archivos de la versión con código de recuperación por navegador
-    const slots = [[data.slice(4, 4 + SLOT), "la clave"], [data.slice(4 + SLOT, 4 + 2 * SLOT), "el código de recuperación"]];
-    let fileKey;
-    for (const [slot, label] of slots) {
-      try { fileKey = await unwrap(slot, password); via = label; break; } catch {}
-    }
-    if (!fileKey) throw new Error("La clave no es correcta. Revísala e inténtalo de nuevo.");
-    const off = 4 + 2 * SLOT;
-    try { plain = new Uint8Array(await crypto.subtle.decrypt({ name: "AES-GCM", iv: data.slice(off, off + 12) }, await aes(fileKey), data.slice(off + 12))); }
-    catch { throw new Error("El archivo está dañado."); }
-  } else if (data.length >= 32 && is(MAGIC1)) {
-    // Archivos de la primera versión (solo clave, sin recuperación)
-    const key = await deriveKey(password, data.slice(4, 20));
-    try { plain = new Uint8Array(await crypto.subtle.decrypt({ name: "AES-GCM", iv: data.slice(20, 32) }, key, data.slice(32))); }
-    catch { throw new Error("Clave incorrecta o archivo dañado."); }
-    via = "la clave";
-  } else {
-    throw new Error("Este archivo no fue creado con este encriptador.");
-  }
-  return unpack(plain, via);
-}
-
-function concat(...parts) {
-  const out = new Uint8Array(parts.reduce((s, p) => s + p.length, 0));
-  let o = 0; for (const p of parts) { out.set(p, o); o += p.length; }
-  return out;
-}
-
-function b64enc(bytes) {
-  let s = "";
-  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
-  return btoa(s);
-}
-function b64dec(str) {
-  const s = atob(str.replace(/\s+/g, ""));
-  const out = new Uint8Array(s.length);
-  for (let i = 0; i < s.length; i++) out[i] = s.charCodeAt(i);
-  return out;
-}
-
-function download(bytes, name, type = "application/octet-stream") {
-  const url = URL.createObjectURL(new Blob([bytes], { type }));
-  const a = Object.assign(document.createElement("a"), { href: url, download: name });
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-</script>
-
-<!-- Pantalla del archivo protegido: no se ejecuta aquí, se copia dentro de cada archivo -->
-<script type="text/plain" id="viewer">
-const $ = id => document.getElementById(id);
-const DATA = b64dec($("payload").textContent);
-const setMsg = (t, cls = "") => { $("msg").textContent = t; $("msg").className = "msg " + cls; };
-$("key").oninput = () => $("run").disabled = !$("key").value.trim();
-$("key").onkeydown = e => { if (e.key === "Enter" && !$("run").disabled) $("run").click(); };
-$("run").onclick = async () => {
-  if (!window.crypto?.subtle)
-    return setMsg("Este navegador bloquea el descifrado aquí. Guarda el archivo en tu computador y ábrelo con doble clic (Chrome, Edge, Safari o Firefox).", "err");
-  $("run").disabled = true;
-  setMsg("Abriendo…");
-  try {
-    const { name, bytes } = await decrypt(DATA, $("key").value);
-    download(bytes, name);
-    setMsg(`Listo. Se descargó "${name}". Búscalo en tu carpeta de Descargas.`, "ok");
-  } catch (e) {
-    setMsg(e.message || "Ocurrió un error.", "err");
-  } finally { $("run").disabled = false; }
-};
-</script>
-
-<script>
-const $ = id => document.getElementById(id);
-
-// --- Íconos ---
-const PATHS = {
-  lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
-  unlock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.6-1.7"/>',
-  upload: '<path d="M12 15V4M7 9l5-5 5 5"/><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/>',
-  download: '<path d="M12 4v11M7 10l5 5 5-5"/><path d="M5 20h14"/>',
-  copy: '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/>',
-  refresh: '<path d="M20 12a8 8 0 1 1-2.4-5.7L20 8.6"/><path d="M20 3v5.6h-5.6"/>',
-  eye: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
-  key: '<circle cx="8" cy="15" r="4"/><path d="M10.8 12.2 20 3M16 7l3 3M14 9l2 2"/>',
-  help: '<circle cx="12" cy="12" r="9"/><path d="M9.6 9.2a2.5 2.5 0 1 1 3.4 2.4c-.6.3-1 .8-1 1.5v.4"/><path d="M12 17h.01"/>',
-  settings: '<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>',
-  check: '<path d="M5 12.5 9.5 17 19 7.5"/>',
-  x: '<path d="M6 6l12 12M18 6 6 18"/>',
-  shield: '<path d="M12 3 20 6v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/>',
-  offline: '<path d="M2 9a15 15 0 0 1 20 0M5.5 12.5a10 10 0 0 1 13 0M9 16a5 5 0 0 1 6 0"/><path d="M12 20h.01"/>',
-  spinner: '<path d="M12 3a9 9 0 1 0 9 9"/>',
-};
-const I = (name, cls = "") => `<svg viewBox="0 0 24 24" aria-hidden="true" class="${cls}">${PATHS[name]}</svg>`;
-document.querySelectorAll("[data-i]").forEach(el => el.insertAdjacentHTML("afterbegin", I(el.dataset.i)));
-
-// --- Almacenamiento local (puede fallar en ventanas privadas) ---
-const store = {
-  get: k => { try { return localStorage.getItem(k); } catch { return null; } },
-  set: (k, v) => { try { localStorage.setItem(k, v); } catch {} },
-};
-// Llave maestra PÚBLICA (de llave-publica.json). Solo sirve para proteger, no para abrir.
-// La llave privada que abre los archivos queda fuera de GitHub, en llave-maestra/.
-const MASTER_PUB = {"id":"246cf9cca49a5d7c","spki":"MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEA56Wt0N7CZ7+bkgmzLkRP6/9ompg68Zr+wWWzBkmTDRqcs1hxoxO2XYeMtqECV0nEXpn1w8CIOPvSnk8Pm2xR73a2p//u8QTRBj2EVItO64PbesE8VnBI/sZDaGBnax9bk72LJ26r0oJmdzm29jwHB/oLtERo8y1pgmjHhtFCzNV+2xtbW/XQYzOedbzxl4kW4SzHdwYP8L8b3UaP2D9JVC6K/SvIM+cGpr5XPNgUKHMHSxunBboyiVGHkqTusaXVsAvuFGnZ+PBb9+SsqCBCSUx83lFmmFytHx75CB1I3dK/W+zPprI6worzrndf30TijnlCLKnZ0Ydt+hPTOu4b65aXN+V3jw4CCeRd2cUiO7R5YAEku1V6jIOf+VV0HqImMbetYZNcQkityCAYGhxvhQKaDYsxtMqov2mCN6o3MHQEZAKyEkjoxb0We9dkvqyflZIVeb4WqCXrp9S5RG40RV1GX5/eW2CeN4a2Bhteh4FjncpZUVzMjwYCva4GQaYJAgMBAAE="};
-let masterPub = null;
-async function getMasterPub() {
-  if (!MASTER_PUB) throw new Error("Falta configurar la llave maestra de la app.");
-  return masterPub ??= {
-    id: Uint8Array.from(MASTER_PUB.id.match(/../g), h => parseInt(h, 16)),
-    key: await crypto.subtle.importKey("spki", b64dec(MASTER_PUB.spki), { name: "RSA-OAEP", hash: "SHA-256" }, false, ["encrypt"]),
-  };
-}
-
-// sel: lo elegido para proteger/abrir. single = un solo archivo; entries = varios o carpeta (se comprimen en .zip)
-let mode = "enc", sel = null, lastGuide = null, lastKey = "", lastName = "";
-
-// --- Modo Proteger / Abrir ---
-const TEXT = {
-  enc: { file: "Elige archivos o una carpeta", key: "Clave para abrirlo", run: "Proteger y descargar",
-    hint: "Compártela con quien recibirá el archivo por otro medio (teléfono o WhatsApp).", placeholder: "Escribe una clave" },
-  dec: { file: "Elige el archivo protegido", key: "Escribe la clave", run: "Abrir y descargar",
-    hint: "Acepta archivos .protegido.html y .enc.", placeholder: "Clave del archivo" },
-};
-function setMode(m) {
-  mode = m;
-  document.querySelectorAll(".seg button").forEach(b => b.setAttribute("aria-selected", b.dataset.mode === m));
-  const t = TEXT[m];
-  $("fileTitle").textContent = t.file;
-  $("keyTitle").textContent = t.key;
-  $("keyHint").textContent = t.hint;
-  $("key").placeholder = t.placeholder;
-  $("file").accept = m === "dec" ? ".html,.htm,.enc" : "";
-  $("file").multiple = m === "enc";
-  $("pickFiles").textContent = m === "enc" ? "Elegir archivos" : "Elegir archivo";
-  $("pickFolder").hidden = m === "dec" || !("webkitdirectory" in $("folder"));
-  $("gen").hidden = $("copy").hidden = m === "dec";
-  $("key").value = m === "enc" ? generateKey() : "";
-  setFile(null);
-  $("result").hidden = true; $("form").hidden = false;
-}
-document.querySelectorAll(".seg button").forEach(b => b.onclick = () => setMode(b.dataset.mode));
-
-// --- Archivo ---
-// Zona para soltar/elegir archivo; showFile(f) pinta el nombre en textEl
-function makeDrop(dropEl, inputEl, onFile) {
-  inputEl.onchange = e => onFile(e.target.files[0]);
-  dropEl.ondragover = e => { e.preventDefault(); dropEl.classList.add("over"); };
-  dropEl.ondragleave = () => dropEl.classList.remove("over");
-  dropEl.ondrop = e => { e.preventDefault(); dropEl.classList.remove("over"); onFile(e.dataTransfer.files[0]); };
-}
-function showFile(dropEl, textEl, f, emptyHtml) {
-  dropEl.classList.toggle("has-file", !!f);
-  if (!f) return textEl.innerHTML = emptyHtml;
-  textEl.innerHTML = `<strong></strong><br><small>${fmtSize(f.size)} · haz clic para cambiarlo</small>`;
-  textEl.querySelector("strong").textContent = f.name;
-}
-
-// Archivos de sistema que no vale la pena incluir
-const JUNK = /^(\.DS_Store|Thumbs\.db|desktop\.ini|\._.*)$/i;
-
-// entries: [{ path: "Carpeta/sub/a.pdf", file }]
-function setSelection(entries) {
-  entries = (entries || []).filter(e => !JUNK.test(e.path.split("/").pop()));
-  $("file").value = $("folder").value = "";
-  sel = null;
-  if (entries.length === 1 && !entries[0].path.includes("/")) {
-    const f = entries[0].file;
-    sel = { single: f, name: f.name, size: f.size, count: 1 };
-  } else if (entries.length) {
-    const tops = new Set(entries.map(e => e.path.split("/")[0]));
-    const folder = tops.size === 1 && entries[0].path.includes("/") ? [...tops][0] : null;
-    sel = { entries, folder, name: (folder || "Archivos") + ".zip", count: entries.length,
-      size: entries.reduce((s, e) => s + e.file.size, 0) };
-  }
-  renderSelection();
-  if (mode === "dec" && sel && !sel.single) { sel = null; renderSelection(); setMsg("En Abrir, elige un solo archivo protegido.", "err"); }
-  else if (sel && sel.size > 300 * 1024 * 1024) setMsg("Es bastante grande (" + fmtSize(sel.size) + "): puede tardar o fallar en equipos con poca memoria.");
-  else setMsg("");
-  refresh();
-}
-function renderSelection() {
-  const d = $("drop"), t = $("dropText");
-  d.classList.toggle("has-file", !!sel);
-  if (!sel) return t.innerHTML = mode === "enc"
-    ? "<strong>Arrastra archivos o una carpeta aquí</strong><br><small>Varios archivos o carpetas se guardan juntos en un .zip</small>"
-    : "<strong>Arrastra el archivo protegido aquí</strong><br><small>.protegido.html o .enc</small>";
-  const what = sel.single ? fmtSize(sel.size)
-    : `${sel.folder ? "Carpeta" : "Archivos"} · ${sel.count} archivo${sel.count === 1 ? "" : "s"} · ${fmtSize(sel.size)} · se guardará como ${sel.name}`;
-  t.innerHTML = "<strong></strong><br><small></small>";
-  t.querySelector("strong").textContent = sel.single ? sel.name : (sel.folder || `${sel.count} archivos`);
-  t.querySelector("small").textContent = what;
-}
-function setFile(f) { setSelection(f ? [{ path: f.name, file: f }] : []); }
-
-// Lee una carpeta soltada (con subcarpetas)
-async function readEntry(entry, prefix = "") {
-  if (entry.isFile) return [{ path: prefix + entry.name, file: await new Promise((ok, ko) => entry.file(ok, ko)) }];
-  const reader = entry.createReader(), out = [];
-  for (;;) {
-    const batch = await new Promise((ok, ko) => reader.readEntries(ok, ko));
-    if (!batch.length) return out;
-    for (const e of batch) out.push(...await readEntry(e, prefix + entry.name + "/"));
-  }
-}
-
-const dropZone = $("drop");
-const pickFiles = list => setSelection([...list].map(f => ({ path: f.webkitRelativePath || f.name, file: f })));
-$("file").onchange = e => pickFiles(e.target.files);
-$("folder").onchange = e => pickFiles(e.target.files);
-$("pickFiles").onclick = () => $("file").click();
-$("pickFolder").onclick = () => $("folder").click();
-dropZone.onclick = e => { if (!e.target.closest("button, input")) $("file").click(); };
-dropZone.ondragover = e => { e.preventDefault(); dropZone.classList.add("over"); };
-dropZone.ondragleave = () => dropZone.classList.remove("over");
-dropZone.ondrop = async e => {
-  e.preventDefault(); dropZone.classList.remove("over");
-  // webkitGetAsEntry debe llamarse antes de cualquier await
-  const roots = [...e.dataTransfer.items].map(i => i.webkitGetAsEntry?.()).filter(Boolean);
-  const files = [...e.dataTransfer.files];
-  try {
-    setSelection(roots.length ? (await Promise.all(roots.map(r => readEntry(r)))).flat() : files.map(f => ({ path: f.name, file: f })));
-  } catch { setMsg("No se pudo leer lo que soltaste. Prueba con «Elegir carpeta».", "err"); }
-};
-
-// --- Clave ---
-$("key").oninput = refresh;
-$("key").onkeydown = e => { if (e.key === "Enter" && !$("run").disabled) $("run").click(); };
-$("gen").onclick = () => { $("key").value = generateKey(); refresh(); };
-$("copy").onclick = e => copyText($("key").value, e.currentTarget);
-$("copyResult").onclick = e => copyText(lastKey, e.currentTarget);
-
-async function copyText(text, btn) {
-  if (!text) return;
-  const label = btn.querySelector("span"), old = label.textContent;
-  try { await navigator.clipboard.writeText(text); label.textContent = "Copiada"; }
-  catch { label.textContent = "No se pudo"; }
-  setTimeout(() => label.textContent = old, 1500);
-}
-
-function refresh() { $("run").disabled = !sel || !clean($("key").value); }
-function setMsg(t, cls = "", el = $("msg")) { el.textContent = t; el.className = "msg " + cls; }
-function setBusy(on) {
-  const b = $("run");
-  if (on) { b.dataset.busy = "1"; b.disabled = true; busyText("Procesando…"); }
-  else { delete b.dataset.busy; b.textContent = TEXT[mode].run; refresh(); }
-}
-function busyText(t) { $("run").innerHTML = I("spinner", "spin") + t; }
-
-// --- Acción principal ---
-$("run").onclick = async () => {
-  if (!window.crypto?.subtle)
-    return setMsg("Tu navegador bloquea el cifrado aquí. Abre la app desde https o instalada.", "err");
-  setBusy(true); setMsg("");
-  try {
-    if (mode === "enc") {
-      const data = sel.single ? new Uint8Array(await sel.single.arrayBuffer())
-        : await makeZip(sel.entries, (i, n) => busyText(`Comprimiendo ${i} de ${n}…`));
-      busyText("Protegiendo…");
-      const out = await encrypt(data, sel.name, $("key").value, await getMasterPub());
-      const outName = sel.name + ".protegido.html";
-      download(enc(buildProtectedPage(sel.name, data.length, out)), outName, "text/html");
-      lastKey = clean($("key").value);
-      lastName = sel.name;
-      lastGuide = buildGuide(sel.name);
-      await addHistory(sel.name, lastKey);
-      $("resultName").textContent = "Se descargó " + outName;
-      $("form").hidden = true; $("result").hidden = false;
-    } else {
-      const data = new Uint8Array(await sel.single.arrayBuffer());
-      const { name, bytes } = await decrypt(extractPayload(data), $("key").value);
-      download(bytes, name);
-      setMsg(`Listo. Se descargó "${name}".` + (/\.zip$/i.test(name) ? " Ábrelo con doble clic para ver la carpeta." : ""), "ok");
-    }
-  } catch (e) {
-    setMsg(e.message || "Ocurrió un error.", "err");
-  } finally { setBusy(false); }
-};
-$("againBtn").onclick = () => setMode("enc");
-$("guideBtn").onclick = () => lastGuide && download(enc(lastGuide.text), lastGuide.name);
-$("keyTxtBtn").onclick = () => lastKey && download(enc(
-  `CLAVE — Archivo protegido\r\n\r\n` +
-  `Archivo:  ${lastName}.protegido.html\r\n` +
-  `Fecha:    ${new Date().toLocaleString("es-CL")}\r\n\r\n` +
-  `Clave:    ${lastKey}\r\n\r\n` +
-  `Guarda este documento en un lugar seguro y SEPARADO del archivo protegido.\r\n` +
-  `No lo envíes en el mismo correo: quien tenga esta clave puede abrir el archivo.\r\n`), lastName + ".CLAVE.txt");
-
-// --- ZIP (para carpetas y varios archivos). Se abre con doble clic en Mac y Windows. ---
-const CRC_TABLE = (() => {
-  const t = new Uint32Array(256);
-  for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; }
-  return t;
-})();
-function crc32(d) {
-  let c = 0xFFFFFFFF;
-  for (let i = 0; i < d.length; i++) c = CRC_TABLE[(c ^ d[i]) & 255] ^ (c >>> 8);
-  return (c ^ 0xFFFFFFFF) >>> 0;
-}
-async function deflate(data) {
-  if (typeof CompressionStream === "undefined") return null;
-  try { return new Uint8Array(await new Response(new Blob([data]).stream().pipeThrough(new CompressionStream("deflate-raw"))).arrayBuffer()); }
-  catch { return null; }
-}
-async function makeZip(entries, onProgress) {
-  if (entries.length > 65535) throw new Error("Son demasiados archivos (máximo 65.535).");
-  const parts = [], central = [];
-  let offset = 0;
-  for (const [i, { path, file }] of entries.entries()) {
-    onProgress?.(i + 1, entries.length);
-    const data = new Uint8Array(await file.arrayBuffer());
-    const name = enc(path), crc = crc32(data);
-    let body = await deflate(data), method = 8;           // 8 = comprimido
-    if (!body || body.length >= data.length) { body = data; method = 0; } // 0 = sin comprimir
-    const d = new Date(file.lastModified || Date.now());
-    const time = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1);
-    const date = ((Math.max(d.getFullYear(), 1980) - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
-    const h = new DataView(new ArrayBuffer(30));
-    h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(8, method, true);
-    h.setUint16(10, time, true); h.setUint16(12, date, true); h.setUint32(14, crc, true);
-    h.setUint32(18, body.length, true); h.setUint32(22, data.length, true); h.setUint16(26, name.length, true);
-    const c = new DataView(new ArrayBuffer(46));
-    c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true);
-    c.setUint16(10, method, true); c.setUint16(12, time, true); c.setUint16(14, date, true); c.setUint32(16, crc, true);
-    c.setUint32(20, body.length, true); c.setUint32(24, data.length, true); c.setUint16(28, name.length, true);
-    c.setUint32(42, offset, true);
-    parts.push(new Uint8Array(h.buffer), name, body);
-    central.push(new Uint8Array(c.buffer), name);
-    offset += 30 + name.length + body.length;
-    if (offset > 0xFFFFFFFF) throw new Error("La carpeta supera los 4 GB; divídela en partes.");
-  }
-  const cdSize = central.reduce((s, p) => s + p.length, 0);
-  const e = new DataView(new ArrayBuffer(22));
-  e.setUint32(0, 0x06054b50, true); e.setUint16(8, entries.length, true); e.setUint16(10, entries.length, true);
-  e.setUint32(12, cdSize, true); e.setUint32(16, offset, true);
-  return concat(...parts, ...central, new Uint8Array(e.buffer));
-}
-
-// Acepta un archivo protegido (.html) o un .enc
-function extractPayload(data) {
-  if (data[0] === 0x3c) { // "<"
-    const m = new TextDecoder().decode(data).match(/<script id="payload"[^>]*>([A-Za-z0-9+/=\s]*)<\/script>/);
-    if (m) return b64dec(m[1]);
-  }
-  return data;
-}
-
-// --- Recuperación maestra (oculta: solo con ?maestra o si este navegador ya guardó la llave) ---
-const MK_STORE = "encriptador.llaveMaestra", HIST_STORE = "encriptador.historial";
-let mkJson = store.get(MK_STORE), mkFileJson = null, mfFile = null, unlocked = null;
-
-function renderMaster() {
-  $("masterBtn").hidden = !(mkJson || new URLSearchParams(location.search).has("maestra"));
-  $("mkLock").hidden = !!unlocked;
-  $("mkOpen").hidden = !unlocked;
-  $("mkLoaded").hidden = !mkJson;
-  $("mkPick").hidden = !!mkJson;
-  $("mkUnlock").disabled = !(mkJson || mkFileJson) || !$("mkPw").value;
-  $("mkRun").disabled = !mfFile;
-}
-makeDrop($("mkDrop"), $("mkFile"), async f => {
-  mkFileJson = null;
-  showFile($("mkDrop"), $("mkText"), f, "<strong>Elige llave-maestra.privada.json</strong>");
-  try {
-    const text = await f.text();
-    if (JSON.parse(text).tipo !== "encriptador-llave-maestra") throw 0;
-    mkFileJson = text; setMsg("", "", $("mkMsg"));
-  } catch { setMsg("Ese archivo no es una llave maestra del Encriptador.", "err", $("mkMsg")); }
-  renderMaster();
-});
-makeDrop($("mfDrop"), $("mfFile"), f => {
-  mfFile = f || null;
-  showFile($("mfDrop"), $("mfText"), mfFile, "<strong>Elige el archivo .protegido.html</strong>");
-  $("mkKeyBox").hidden = true;
-  setMsg("", "", $("mkMsg")); renderMaster();
-});
-$("mkPw").oninput = renderMaster;
-$("mkPw").onkeydown = e => { if (e.key === "Enter" && !$("mkUnlock").disabled) $("mkUnlock").click(); };
-$("mkForget").onclick = () => {
-  try { localStorage.removeItem(MK_STORE); } catch {}
-  mkJson = null; renderMaster();
-};
-
-// Descifra la llave privada con la contraseña (la llave nunca se guarda descifrada)
-async function unlockMaster(json, pw) {
-  const k = JSON.parse(json);
-  const kek = await deriveKey(pw, b64dec(k.kdf.salt), k.kdf.iteraciones);
-  let pkcs8;
-  try { pkcs8 = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b64dec(k.iv) }, kek, b64dec(k.datos)); }
-  catch { throw new Error("La contraseña de la llave maestra no es correcta."); }
-  return {
-    id: Uint8Array.from(k.id.match(/../g), h => parseInt(h, 16)),
-    key: await crypto.subtle.importKey("pkcs8", pkcs8, { name: "RSA-OAEP", hash: "SHA-256" }, false, ["decrypt"]),
-  };
-}
-
-$("mkUnlock").onclick = async () => {
-  const b = $("mkUnlock");
-  b.disabled = true; b.innerHTML = I("spinner", "spin") + "Desbloqueando…";
-  setMsg("", "", $("mkMsg"));
-  try {
-    const json = mkJson || mkFileJson;
-    unlocked = await unlockMaster(json, $("mkPw").value);
-    $("mkPw").value = "";
-    if (!mkJson && $("mkRemember").checked) { store.set(MK_STORE, json); mkJson = json; }
-    await renderHistory();
-  } catch (e) {
-    setMsg(e.message || "Ocurrió un error.", "err", $("mkMsg"));
-  } finally {
-    b.innerHTML = I("unlock") + "Desbloquear"; renderMaster();
-  }
-};
-
-// Al bloquear se olvida todo lo descifrado
-function lockMaster() {
-  unlocked = null; mfFile = null;
-  $("mkPw").value = ""; $("hist").innerHTML = ""; $("mkKey").textContent = ""; $("mkKeyBox").hidden = true;
-  showFile($("mfDrop"), $("mfText"), null, "<strong>Elige el archivo .protegido.html</strong>");
-  setMsg("", "", $("mkMsg")); renderMaster();
-}
-$("mkLockBtn").onclick = lockMaster;
-
-$("mkRun").onclick = async () => {
-  const b = $("mkRun");
-  b.disabled = true; b.innerHTML = I("spinner", "spin") + "Recuperando…";
-  setMsg("", "", $("mkMsg")); $("mkKeyBox").hidden = true;
-  try {
-    const { name, bytes, key } = await decryptMaster(extractPayload(new Uint8Array(await mfFile.arrayBuffer())), unlocked);
-    download(bytes, name);
-    $("mkKey").textContent = key || "";
-    $("mkKeyBox").hidden = !key;
-    setMsg(`Listo. Se descargó "${name}".` + (key ? "" : " Su clave no quedó guardada (archivo de una versión anterior)."), "ok", $("mkMsg"));
-  } catch (e) {
-    setMsg(e.message || "Ocurrió un error.", "err", $("mkMsg"));
-  } finally {
-    b.textContent = "Recuperar y ver clave"; renderMaster();
-  }
-};
-$("mkKeyCopy").onclick = e => copyText($("mkKey").textContent, e.currentTarget);
-
-// --- Historial de claves: cada entrada va sellada con la llave maestra pública; solo Calidad puede leerlo ---
-function loadHist() { try { return JSON.parse(store.get(HIST_STORE) || "[]"); } catch { return []; } }
-async function addHistory(name, key) {
-  try {
-    const plain = enc(JSON.stringify({ n: name.slice(0, 80), k: clean(key) }));
-    if (plain.length > RSA_MAX) return;
-    const sealed = new Uint8Array(await crypto.subtle.encrypt({ name: "RSA-OAEP" }, (await getMasterPub()).key, plain));
-    const h = loadHist();
-    h.unshift({ t: new Date().toISOString(), s: b64enc(sealed) });
-    store.set(HIST_STORE, JSON.stringify(h.slice(0, 500)));
-  } catch {}
-}
-async function renderHistory() {
-  const ul = $("hist"), items = loadHist();
-  ul.innerHTML = "";
-  if (!items.length) return ul.innerHTML = '<li class="empty">Aún no hay archivos protegidos en este equipo.</li>';
-  for (const it of items) {
-    let n = "(protegido con otra llave maestra)", k = "";
-    try {
-      const r = JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name: "RSA-OAEP" }, unlocked.key, b64dec(it.s))));
-      n = r.n; k = r.k;
-    } catch {}
-    const li = document.createElement("li");
-    li.innerHTML = "<div><b></b><code></code><br><small></small></div>";
-    li.querySelector("b").textContent = n;
-    li.querySelector("code").textContent = k;
-    li.querySelector("small").textContent = new Date(it.t).toLocaleString("es-CL");
-    if (k) {
-      const btn = document.createElement("button");
-      btn.className = "btn btn-sm"; btn.type = "button";
-      btn.innerHTML = I("copy") + "<span>Copiar</span>";
-      btn.onclick = () => copyText(k, btn);
-      li.append(btn);
-    }
-    ul.append(li);
-  }
-}
-$("histClear").onclick = async () => {
-  if (!confirm("¿Borrar el historial de claves de este equipo?")) return;
-  try { localStorage.removeItem(HIST_STORE); } catch {}
-  renderHistory();
-};
-
-// --- Diálogos ---
-$("masterBtn").onclick = () => { renderMaster(); $("master").showModal(); };
-$("helpBtn").onclick = () => $("help").showModal();
-document.querySelectorAll("dialog").forEach(d => {
-  d.onclick = e => { if (e.target === d || e.target.closest("[data-close]")) d.close(); };
-});
-// Al cerrar, olvidar la contraseña escrita
-$("master").addEventListener("close", lockMaster);
-
-// --- Instalación (PWA) ---
-let installEvent = null;
-addEventListener("beforeinstallprompt", e => { e.preventDefault(); installEvent = e; $("installBtn").hidden = false; });
-addEventListener("appinstalled", () => { installEvent = null; $("installBtn").hidden = true; });
-$("installBtn").onclick = async () => {
-  if (!installEvent) return $("help").showModal();
-  installEvent.prompt();
-  await installEvent.userChoice;
-  installEvent = null; $("installBtn").hidden = true;
-};
-if ("serviceWorker" in navigator && location.protocol.startsWith("http"))
-  navigator.serviceWorker.register("sw.js").catch(() => {});
-
-// --- Textos y archivos generados ---
-const esc = s => s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
-const fmtSize = n => n < 1024 * 1024 ? (n / 1024).toFixed(1) + " KB" : (n / 1024 / 1024).toFixed(1) + " MB";
-
-// Archivo .html autocontenido: instrucciones + campo de clave + datos cifrados
-function buildProtectedPage(name, size, bytes) {
-  const n = esc(name);
-  return `<!doctype html>
-<html lang="es">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Archivo protegido</title>
-<style>${$("styles").textContent}</style>
-</head>
-<body>
-<div class="app">
-  <header class="topbar">
-    <div class="brand">
-      <span class="logo">${I("lock")}</span>
-      <div><b>Archivo protegido</b><small>${n} · ${fmtSize(size)}</small></div>
-    </div>
-  </header>
-  <section class="panel">
-    <div class="step"><span class="num">${I("help")}</span><h2>Cómo abrirlo</h2></div>
-    <ol class="steps">
-      <li>Escribe la clave que te entregaron (por teléfono, WhatsApp u otro medio).</li>
-      <li>Pulsa <strong>Abrir archivo</strong>.</li>
-      <li>Se descargará <strong>${n}</strong>, listo para abrir. Búscalo en tu carpeta de Descargas.</li>${/\.zip$/i.test(name) ? `
-      <li>Es una carpeta comprimida: ábrela con doble clic para ver su contenido.</li>` : ""}
-    </ol>
-    <div class="step"><span class="num">${I("key")}</span><h2>Clave</h2></div>
-    <div class="input-wrap">
-      <input type="text" id="key" autocomplete="off" spellcheck="false" placeholder="Escribe la clave" aria-label="Clave" autofocus>
-    </div>
-    <button class="btn btn-primary btn-block" id="run" disabled>${I("unlock")}Abrir archivo</button>
-    <div class="msg" id="msg" role="status"></div>
-    <p class="warn"><strong>Importante:</strong> si olvidas la clave, el archivo no se podrá abrir. Pide a quien te lo envió que lo vuelva a enviar.</p>
-  </section>
-  <footer>
-    <span>${I("shield")}AES-256</span>
-    <span>${I("offline")}Funciona sin internet</span>
-    <span>${I("lock")}Nada sale de tu equipo</span>
-  </footer>
-</div>
-<script id="payload" type="application/octet-stream">${b64enc(bytes)}<\/script>
-<script>${$("core").textContent}
-${$("viewer").textContent}<\/script>
-</body>
-</html>
-`;
-}
-
-function buildGuide(name) {
-  return {
-    name: name + ".INSTRUCTIVO.txt",
-    text: `INSTRUCTIVO — Cómo abrir el archivo protegido\r\n\r\n` +
-      `Recibiste el archivo:  ${name}.protegido.html\r\n` +
-      `Está protegido con una clave que te entregarán por otro medio.\r\n\r\n` +
-      `PASOS\r\n\r\n` +
-      `  1. Descarga el archivo "${name}.protegido.html" en tu computador.\r\n` +
-      `  2. Ábrelo con doble clic (se abre en tu navegador).\r\n` +
-      `  3. Escribe la clave y pulsa "Abrir archivo".\r\n` +
-      `  4. Se descargará "${name}", listo para abrir.\r\n` +
-      (/\.zip$/i.test(name) ? `     Es una carpeta comprimida: ábrela con doble clic para ver su contenido.\r\n` : "") + `\r\n` +
-      `IMPORTANTE\r\n\r\n` +
-      `  Si olvidas la clave, el archivo no se podrá abrir.\r\n` +
-      `  Guárdala en un lugar seguro y no la compartas.\r\n` +
-      `  Si la pierdes, pide a quien te envió el archivo que lo vuelva a enviar.\r\n`
-  };
-}
-
-setMode("enc");
-renderMaster();
-if (new URLSearchParams(location.search).has("maestra")) $("master").showModal();
-</script>
+<script src="core.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
