@@ -1,0 +1,729 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Encriptador</title>
+<meta name="description" content="Protege archivos con una clave. Funciona sin internet y nada sale de tu equipo.">
+<meta name="theme-color" content="#f3f4f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1218" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Encriptador">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<style id="styles">
+  :root {
+    --bg: #f3f4f7; --surface: #ffffff; --surface-2: #f7f8fa; --seg-bg: #e8eaef;
+    --text: #161a23; --muted: #5f6878; --border: #e3e6ec; --border-strong: #d3d8e1;
+    --accent: #3355e0; --accent-hover: #2846c4; --accent-soft: #eaefff; --on-accent: #ffffff; --ring: rgba(51,85,224,.18);
+    --ok: #0e7a43; --ok-soft: #e5f5ec; --err: #b42318; --err-soft: #fdecea;
+    --warn-soft: #fff7e1; --warn-border: #efcf7a;
+    --shadow-sm: 0 1px 2px rgba(16,24,40,.08);
+    --shadow: 0 1px 2px rgba(16,24,40,.05), 0 6px 20px rgba(16,24,40,.06);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1218; --surface: #181c24; --surface-2: #1e232d; --seg-bg: #1b2029;
+      --text: #e8eaef; --muted: #98a1b2; --border: #2a303b; --border-strong: #353c49;
+      --accent: #6a8bff; --accent-hover: #87a1ff; --accent-soft: #1f2a4d; --on-accent: #0b0e14; --ring: rgba(106,139,255,.25);
+      --ok: #4cc38a; --ok-soft: #14301f; --err: #ff7b6e; --err-soft: #3a1a17;
+      --warn-soft: #2b2415; --warn-border: #6f5a25;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,.4);
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25);
+      color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased; }
+  svg { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 2;
+    stroke-linecap: round; stroke-linejoin: round; }
+  h2 { font-size: 15px; margin: 0; }
+  code { font: .92em ui-monospace, "SF Mono", Menlo, monospace; background: var(--surface-2);
+    border: 1px solid var(--border); padding: 1px 5px; border-radius: 5px; }
+
+  .app { max-width: 600px; margin: 0 auto;
+    padding: max(16px, env(safe-area-inset-top)) 16px max(28px, env(safe-area-inset-bottom)); }
+  .topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 8px 0 20px; }
+  .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .brand b { display: block; font-size: 18px; letter-spacing: -.01em; }
+  .brand small { display: block; color: var(--muted); font-size: 13px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .logo { flex: none; width: 40px; height: 40px; border-radius: 11px; display: grid; place-items: center;
+    color: #fff; background: linear-gradient(140deg, #5a7dff, #2a43c9); box-shadow: 0 4px 12px rgba(51,85,224,.3); }
+  .logo svg { width: 21px; height: 21px; }
+  .actions { display: flex; gap: 6px; flex: none; }
+  .icon-btn { width: 38px; height: 38px; display: grid; place-items: center; padding: 0;
+    border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: 10px; cursor: pointer; }
+  .icon-btn:hover { background: var(--surface-2); }
+
+  .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; margin-bottom: 16px;
+    background: var(--seg-bg); border-radius: 12px; }
+  .seg button { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px;
+    border: 0; border-radius: 9px; background: transparent; color: var(--muted);
+    font: inherit; font-weight: 600; cursor: pointer; }
+  .seg button[aria-selected="true"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
+
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 20px; box-shadow: var(--shadow); }
+  .panel + .panel { margin-top: 16px; }
+  .step { display: flex; align-items: center; gap: 10px; margin: 0 0 10px; }
+  .step:not(:first-child) { margin-top: 24px; }
+  .num { flex: none; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center;
+    background: var(--accent-soft); color: var(--accent); font-size: 13px; font-weight: 700; }
+  .num svg { width: 14px; height: 14px; }
+
+  .drop { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 28px 16px; text-align: center;
+    border: 1.5px dashed var(--border-strong); border-radius: 12px; background: var(--surface-2);
+    color: var(--muted); cursor: pointer; transition: border-color .15s, background .15s; }
+  .drop:hover, .drop.over { border-color: var(--accent); background: var(--accent-soft); }
+  .drop.has-file { border-style: solid; }
+  .drop > svg { width: 28px; height: 28px; color: var(--accent); margin-bottom: 4px; }
+  .drop strong { color: var(--text); word-break: break-all; }
+  .drop small { font-size: 13px; }
+  .drop input { display: none; }
+
+  .input-wrap { display: flex; align-items: center; gap: 6px; padding: 4px 4px 4px 12px;
+    border: 1px solid var(--border-strong); border-radius: 10px; background: var(--surface-2); }
+  .input-wrap:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--ring); }
+  .input-wrap input { flex: 1; min-width: 0; padding: 8px 0; border: 0; outline: 0; background: transparent;
+    color: var(--text); font: 15px ui-monospace, "SF Mono", Menlo, monospace; }
+  .input-wrap input:disabled { color: var(--muted); font-family: inherit; }
+  .input-wrap input::placeholder { color: var(--muted); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 9px 14px;
+    border: 1px solid var(--border); border-radius: 9px; background: var(--surface); color: var(--text);
+    font: inherit; font-size: 14px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+  .btn:hover { background: var(--surface-2); }
+  .btn svg { width: 16px; height: 16px; }
+  .btn-sm { padding: 6px 10px; font-size: 13px; }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-block { width: 100%; margin-top: 24px; padding: 13px; font-size: 15px; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn-primary:disabled:hover { background: var(--accent); }
+  .link { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; padding: 0; border: 0; background: none;
+    color: var(--accent); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .link svg { width: 16px; height: 16px; }
+  .hint { color: var(--muted); font-size: 13px; margin: 8px 0 0; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .row.center { justify-content: center; }
+
+  .msg { margin-top: 14px; padding: 10px 12px; border-radius: 10px; font-size: 14px;
+    background: var(--surface-2); color: var(--muted); }
+  .msg:empty { display: none; }
+  .msg.ok { background: var(--ok-soft); color: var(--ok); }
+  .msg.err { background: var(--err-soft); color: var(--err); }
+
+  .result { text-align: center; }
+  .badge { width: 48px; height: 48px; margin: 0 auto 10px; border-radius: 50%; display: grid; place-items: center;
+    background: var(--ok-soft); color: var(--ok); }
+  .badge svg { width: 24px; height: 24px; }
+  .result h2 { font-size: 18px; }
+  .result > p { color: var(--muted); margin: 4px 0 16px; word-break: break-all; }
+  .next { list-style: none; margin: 0 0 16px; padding: 0; display: grid; gap: 8px; text-align: left; }
+  .next li { display: flex; align-items: center; gap: 10px; padding: 12px; font-size: 14px;
+    border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); }
+  .next li > span { flex: 1; }
+
+  .banner { display: flex; align-items: center; gap: 12px; padding: 12px 14px; margin-bottom: 16px; font-size: 14px;
+    border: 1px solid var(--warn-border); background: var(--warn-soft); border-radius: 12px; }
+  .banner > span { flex: 1; }
+  .warn { margin: 18px 0 0; padding: 12px 14px; font-size: 14px;
+    border: 1px solid var(--warn-border); background: var(--warn-soft); border-radius: 10px; }
+  ol.steps { margin: 0 0 4px; padding-left: 20px; }
+  ol.steps li { margin: 6px 0; }
+
+  footer { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 16px; margin-top: 20px;
+    color: var(--muted); font-size: 12px; }
+  footer span { display: inline-flex; align-items: center; gap: 5px; }
+  footer svg { width: 13px; height: 13px; }
+
+  dialog { width: min(520px, calc(100% - 32px)); max-height: calc(100% - 32px); padding: 0;
+    border: 1px solid var(--border); border-radius: 16px; background: var(--surface); color: var(--text);
+    box-shadow: 0 24px 64px rgba(0,0,0,.28); }
+  dialog::backdrop { background: rgba(10,14,22,.45); }
+  .dlg-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 14px 20px;
+    border-bottom: 1px solid var(--border); }
+  .dlg-head h2 { font-size: 17px; }
+  .dlg-head .icon-btn { border: 0; }
+  .dlg-body { padding: 20px; }
+  .dlg-body h3 { font-size: 15px; margin: 22px 0 6px; }
+  .dlg-body h3:first-child { margin-top: 0; }
+  .dlg-body p { margin: 0 0 12px; color: var(--muted); font-size: 14px; }
+  .dlg-body .row { margin-top: 12px; }
+  .status { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--ok); }
+  .status.pending { color: var(--err); }
+  .status svg { width: 15px; height: 15px; }
+
+  .spin { animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  [hidden] { display: none !important; }
+  @media (max-width: 440px) {
+    .brand small { display: none; }
+    .panel { padding: 16px; }
+    .seg button { font-size: 14px; }
+    #installBtn span, #form .input-wrap .btn span { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo" data-i="lock"></span>
+      <div><b>Encriptador</b><small>Protege tus archivos con una clave</small></div>
+    </div>
+    <div class="actions">
+      <button class="btn btn-sm" id="installBtn" hidden data-i="download"><span>Instalar</span></button>
+      <button class="icon-btn" id="helpBtn" aria-label="Instructivo" title="Instructivo" data-i="help"></button>
+      <button class="icon-btn" id="settingsBtn" aria-label="Configuración" title="Configuración" data-i="settings"></button>
+    </div>
+  </header>
+
+  <div class="banner" id="kitBanner" hidden>
+    <span><strong>Guarda tu kit de recuperación.</strong> Te permite abrir tus archivos si alguien pierde la clave.</span>
+    <button class="btn btn-sm" id="bannerKit" data-i="download">Descargar</button>
+  </div>
+
+  <nav class="seg" role="tablist">
+    <button role="tab" aria-selected="true" data-mode="enc" data-i="lock">Proteger</button>
+    <button role="tab" aria-selected="false" data-mode="dec" data-i="unlock">Abrir</button>
+  </nav>
+
+  <section class="panel" id="form">
+    <div class="step"><span class="num">1</span><h2 id="fileTitle">Elige el archivo a proteger</h2></div>
+    <label class="drop" id="drop" data-i="upload">
+      <input type="file" id="file">
+      <span id="dropText"><strong>Arrastra un archivo aquí</strong><br><small>o haz clic para elegirlo</small></span>
+    </label>
+
+    <div class="step"><span class="num">2</span><h2 id="keyTitle">Clave para abrirlo</h2></div>
+    <div class="input-wrap">
+      <input type="text" id="key" autocomplete="off" spellcheck="false" aria-labelledby="keyTitle">
+      <button class="btn btn-sm" id="gen" type="button" title="Generar otra clave" data-i="refresh"><span>Nueva</span></button>
+      <button class="btn btn-sm" id="copy" type="button" title="Copiar clave" data-i="copy"><span>Copiar</span></button>
+      <button class="btn btn-sm" id="cancelRec" type="button" hidden data-i="x"><span>Quitar</span></button>
+    </div>
+    <p class="hint" id="keyHint">Compártela con quien recibirá el archivo por otro medio (teléfono o WhatsApp).</p>
+    <button class="link" id="useRec" type="button" hidden data-i="key">Olvidé la clave: usar mi código de recuperación</button>
+
+    <button class="btn btn-primary btn-block" id="run" disabled>Proteger y descargar</button>
+    <div class="msg" id="msg" role="status"></div>
+  </section>
+
+  <section class="panel result" id="result" hidden>
+    <div class="badge" data-i="check"></div>
+    <h2>Archivo protegido listo</h2>
+    <p id="resultName"></p>
+    <ol class="next">
+      <li><span><strong>Envía el archivo.</strong> Ya incluye las instrucciones para abrirlo.</span></li>
+      <li><span><strong>Comparte la clave</strong> por otro medio, no en el mismo correo.</span>
+        <button class="btn btn-sm" id="copyResult" data-i="copy"><span>Copiar clave</span></button></li>
+    </ol>
+    <div class="row center">
+      <button class="btn" id="guideBtn" data-i="download">Instructivo (.txt)</button>
+      <button class="btn" id="againBtn" data-i="refresh">Proteger otro archivo</button>
+    </div>
+  </section>
+
+  <footer>
+    <span data-i="shield">AES-256</span>
+    <span data-i="offline">Funciona sin internet</span>
+    <span data-i="lock">Nada sale de tu equipo</span>
+  </footer>
+</div>
+
+<dialog id="settings" aria-labelledby="settingsTitle">
+  <div class="dlg-head">
+    <h2 id="settingsTitle">Configuración</h2>
+    <button class="icon-btn" data-close aria-label="Cerrar" data-i="x"></button>
+  </div>
+  <div class="dlg-body">
+    <h3>Código de recuperación</h3>
+    <p>Se agrega en secreto a cada archivo que proteges. Si alguien pierde la clave, este código lo abre. No se muestra en la app y solo se guarda en este equipo.</p>
+    <div class="input-wrap">
+      <input type="password" id="rec" readonly autocomplete="off" spellcheck="false" aria-label="Código de recuperación">
+      <button class="btn btn-sm" id="recEye" type="button" data-i="eye"><span>Mostrar</span></button>
+      <button class="btn btn-sm" id="recCopy" type="button" data-i="copy"><span>Copiar</span></button>
+    </div>
+    <p class="hint"><span class="status" id="kitStatus"></span></p>
+    <div class="row">
+      <button class="btn" id="kitBtn" data-i="download">Descargar kit</button>
+      <button class="btn" id="editRec" data-i="key">Usar un código existente</button>
+      <button class="btn" id="newRec" data-i="refresh">Generar nuevo</button>
+    </div>
+    <p class="hint">Si tu oficina usa un código común (por ejemplo, uno que guarda la jefatura), ingrésalo con «Usar un código existente». Los archivos ya protegidos siguen abriéndose con el código que tenían.</p>
+  </div>
+</dialog>
+
+<dialog id="help" aria-labelledby="helpTitle">
+  <div class="dlg-head">
+    <h2 id="helpTitle">Instructivo</h2>
+    <button class="icon-btn" data-close aria-label="Cerrar" data-i="x"></button>
+  </div>
+  <div class="dlg-body">
+    <h3>Proteger un archivo</h3>
+    <ol class="steps">
+      <li>En <strong>Proteger</strong>, elige o arrastra el archivo.</li>
+      <li>Usa la clave generada o escribe la tuya.</li>
+      <li>Pulsa <strong>Proteger y descargar</strong>. Se descarga un archivo <code>.protegido.html</code> que ya trae las instrucciones para abrirlo.</li>
+      <li>Envía ese archivo. La clave va por otro medio (teléfono o WhatsApp).</li>
+    </ol>
+    <h3>Abrir un archivo recibido</h3>
+    <ol class="steps">
+      <li>Abre el archivo <code>.protegido.html</code> con doble clic.</li>
+      <li>Escribe la clave y pulsa <strong>Abrir archivo</strong>.</li>
+      <li>Se descarga el archivo original, listo para usar.</li>
+    </ol>
+    <p>También puedes cargarlo en la pestaña <strong>Abrir</strong> de esta app (acepta <code>.protegido.html</code> y <code>.enc</code>).</p>
+    <h3>Si se pierde la clave</h3>
+    <p>En <strong>Abrir</strong>, pulsa «Olvidé la clave: usar mi código de recuperación». Solo funciona en el equipo de quien protegió el archivo, o con su kit de recuperación.</p>
+    <h3>Instalar la app</h3>
+    <p><strong>Chrome o Edge:</strong> botón <strong>Instalar</strong> arriba, o el ícono de instalar en la barra de direcciones. <strong>Safari (Mac):</strong> Archivo → Añadir al Dock. <strong>iPhone/iPad:</strong> Compartir → Añadir a pantalla de inicio.</p>
+    <p class="warn"><strong>Importante:</strong> si se pierden la clave y el código de recuperación, el archivo no se podrá abrir. Nadie puede recuperarlo.</p>
+  </div>
+</dialog>
+
+<!-- Núcleo de cifrado: lo usa esta app y se copia dentro de cada archivo protegido -->
+<script id="core">
+const ITER = 250000;
+const enc = s => new TextEncoder().encode(s);
+const MAGIC1 = enc("ENC1"), MAGIC2 = enc("ENC2");
+const SLOT = 76;
+
+function generateKey(len = 24) {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+  const out = [];
+  const buf = new Uint8Array(1);
+  while (out.length < len) {
+    crypto.getRandomValues(buf);
+    if (buf[0] < 256 - (256 % chars.length)) out.push(chars[buf[0] % chars.length]); // sin sesgo
+  }
+  return out.join("").match(/.{1,6}/g).join("-");
+}
+
+// Quita espacios al inicio y final: evita fallos al pegar desde el kit
+const clean = s => s.trim();
+
+async function deriveKey(password, salt) {
+  const base = await crypto.subtle.importKey("raw", enc(password), "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey({ name: "PBKDF2", salt, iterations: ITER, hash: "SHA-256" },
+    base, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+}
+
+const aes = raw => crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["encrypt", "decrypt"]);
+const rand = n => crypto.getRandomValues(new Uint8Array(n));
+
+// Envuelve la llave del archivo con una contraseña: salt(16) | iv(12) | AES-GCM(llave)(48) = 76 bytes
+async function wrap(fileKey, password) {
+  const salt = rand(16), iv = rand(12);
+  const kek = await deriveKey(clean(password), salt);
+  return concat(salt, iv, new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, kek, fileKey)));
+}
+async function unwrap(slot, password) {
+  const kek = await deriveKey(clean(password), slot.slice(0, 16));
+  return new Uint8Array(await crypto.subtle.decrypt({ name: "AES-GCM", iv: slot.slice(16, 28) }, kek, slot.slice(28)));
+}
+
+// Formato ENC2: "ENC2" | slot clave(76) | slot recuperación(76) | iv(12) | AES-GCM( nameLen(2) | name | datos )
+async function encrypt(data, name, password, recovery) {
+  const fileKey = rand(32), iv = rand(12);
+  const nameBytes = enc(name).slice(0, 65535);
+  const plain = new Uint8Array(2 + nameBytes.length + data.length);
+  new DataView(plain.buffer).setUint16(0, nameBytes.length);
+  plain.set(nameBytes, 2);
+  plain.set(data, 2 + nameBytes.length);
+  const cipher = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, await aes(fileKey), plain));
+  return concat(MAGIC2, await wrap(fileKey, password), await wrap(fileKey, recovery), iv, cipher);
+}
+
+async function decrypt(data, password) {
+  const is = m => m.every((b, i) => data[i] === b);
+  let plain, via;
+  if (data.length > 4 + 2 * SLOT + 12 && is(MAGIC2)) {
+    const slots = [[data.slice(4, 4 + SLOT), "la clave"], [data.slice(4 + SLOT, 4 + 2 * SLOT), "el código de recuperación"]];
+    let fileKey;
+    for (const [slot, label] of slots) {
+      try { fileKey = await unwrap(slot, password); via = label; break; } catch {}
+    }
+    if (!fileKey) throw new Error("La clave no es correcta. Revísala e inténtalo de nuevo.");
+    const off = 4 + 2 * SLOT;
+    try { plain = new Uint8Array(await crypto.subtle.decrypt({ name: "AES-GCM", iv: data.slice(off, off + 12) }, await aes(fileKey), data.slice(off + 12))); }
+    catch { throw new Error("El archivo está dañado."); }
+  } else if (data.length >= 32 && is(MAGIC1)) {
+    // Archivos de la primera versión (solo clave, sin recuperación)
+    const key = await deriveKey(password, data.slice(4, 20));
+    try { plain = new Uint8Array(await crypto.subtle.decrypt({ name: "AES-GCM", iv: data.slice(20, 32) }, key, data.slice(32))); }
+    catch { throw new Error("Clave incorrecta o archivo dañado."); }
+    via = "la clave";
+  } else {
+    throw new Error("Este archivo no fue creado con este encriptador.");
+  }
+  const n = new DataView(plain.buffer).getUint16(0);
+  return { name: new TextDecoder().decode(plain.slice(2, 2 + n)) || "archivo", bytes: plain.slice(2 + n), via };
+}
+
+function concat(...parts) {
+  const out = new Uint8Array(parts.reduce((s, p) => s + p.length, 0));
+  let o = 0; for (const p of parts) { out.set(p, o); o += p.length; }
+  return out;
+}
+
+function b64enc(bytes) {
+  let s = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+function b64dec(str) {
+  const s = atob(str.replace(/\s+/g, ""));
+  const out = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i++) out[i] = s.charCodeAt(i);
+  return out;
+}
+
+function download(bytes, name, type = "application/octet-stream") {
+  const url = URL.createObjectURL(new Blob([bytes], { type }));
+  const a = Object.assign(document.createElement("a"), { href: url, download: name });
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+</script>
+
+<!-- Pantalla del archivo protegido: no se ejecuta aquí, se copia dentro de cada archivo -->
+<script type="text/plain" id="viewer">
+const $ = id => document.getElementById(id);
+const DATA = b64dec($("payload").textContent);
+const setMsg = (t, cls = "") => { $("msg").textContent = t; $("msg").className = "msg " + cls; };
+$("key").oninput = () => $("run").disabled = !$("key").value.trim();
+$("key").onkeydown = e => { if (e.key === "Enter" && !$("run").disabled) $("run").click(); };
+$("run").onclick = async () => {
+  if (!window.crypto?.subtle)
+    return setMsg("Este navegador bloquea el descifrado aquí. Guarda el archivo en tu computador y ábrelo con doble clic (Chrome, Edge, Safari o Firefox).", "err");
+  $("run").disabled = true;
+  setMsg("Abriendo…");
+  try {
+    const { name, bytes } = await decrypt(DATA, $("key").value);
+    download(bytes, name);
+    setMsg(`Listo. Se descargó "${name}". Búscalo en tu carpeta de Descargas.`, "ok");
+  } catch (e) {
+    setMsg(e.message || "Ocurrió un error.", "err");
+  } finally { $("run").disabled = false; }
+};
+</script>
+
+<script>
+const $ = id => document.getElementById(id);
+
+// --- Íconos ---
+const PATHS = {
+  lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+  unlock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.6-1.7"/>',
+  upload: '<path d="M12 15V4M7 9l5-5 5 5"/><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/>',
+  download: '<path d="M12 4v11M7 10l5 5 5-5"/><path d="M5 20h14"/>',
+  copy: '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/>',
+  refresh: '<path d="M20 12a8 8 0 1 1-2.4-5.7L20 8.6"/><path d="M20 3v5.6h-5.6"/>',
+  eye: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  key: '<circle cx="8" cy="15" r="4"/><path d="M10.8 12.2 20 3M16 7l3 3M14 9l2 2"/>',
+  help: '<circle cx="12" cy="12" r="9"/><path d="M9.6 9.2a2.5 2.5 0 1 1 3.4 2.4c-.6.3-1 .8-1 1.5v.4"/><path d="M12 17h.01"/>',
+  settings: '<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>',
+  check: '<path d="M5 12.5 9.5 17 19 7.5"/>',
+  x: '<path d="M6 6l12 12M18 6 6 18"/>',
+  shield: '<path d="M12 3 20 6v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/>',
+  offline: '<path d="M2 9a15 15 0 0 1 20 0M5.5 12.5a10 10 0 0 1 13 0M9 16a5 5 0 0 1 6 0"/><path d="M12 20h.01"/>',
+  spinner: '<path d="M12 3a9 9 0 1 0 9 9"/>',
+};
+const I = (name, cls = "") => `<svg viewBox="0 0 24 24" aria-hidden="true" class="${cls}">${PATHS[name]}</svg>`;
+document.querySelectorAll("[data-i]").forEach(el => el.insertAdjacentHTML("afterbegin", I(el.dataset.i)));
+
+// --- Almacenamiento local (puede fallar en ventanas privadas) ---
+const store = {
+  get: k => { try { return localStorage.getItem(k); } catch { return null; } },
+  set: (k, v) => { try { localStorage.setItem(k, v); } catch {} },
+};
+const REC_KEY = "encriptador.recuperacion", KIT_KEY = "encriptador.kitGuardado";
+let rec = store.get(REC_KEY);
+if (!rec) { rec = generateKey(32); store.set(REC_KEY, rec); store.set(KIT_KEY, ""); }
+
+let mode = "enc", file = null, useRec = false, lastGuide = null, lastKey = "";
+
+// --- Modo Proteger / Abrir ---
+const TEXT = {
+  enc: { file: "Elige el archivo a proteger", key: "Clave para abrirlo", run: "Proteger y descargar",
+    hint: "Compártela con quien recibirá el archivo por otro medio (teléfono o WhatsApp).", placeholder: "Escribe una clave" },
+  dec: { file: "Elige el archivo protegido", key: "Escribe la clave", run: "Abrir y descargar",
+    hint: "Acepta archivos .protegido.html y .enc.", placeholder: "Clave del archivo" },
+};
+function setMode(m) {
+  mode = m;
+  document.querySelectorAll(".seg button").forEach(b => b.setAttribute("aria-selected", b.dataset.mode === m));
+  const t = TEXT[m];
+  $("fileTitle").textContent = t.file;
+  $("keyTitle").textContent = t.key;
+  $("keyHint").textContent = t.hint;
+  $("key").placeholder = t.placeholder;
+  $("file").accept = m === "dec" ? ".html,.htm,.enc" : "";
+  $("gen").hidden = $("copy").hidden = m === "dec";
+  $("useRec").hidden = m === "enc";
+  $("key").value = m === "enc" ? generateKey() : "";
+  setUseRec(false);
+  setFile(null);
+  $("result").hidden = true; $("form").hidden = false;
+}
+document.querySelectorAll(".seg button").forEach(b => b.onclick = () => setMode(b.dataset.mode));
+
+function setUseRec(on) {
+  useRec = on;
+  $("key").disabled = on;
+  $("cancelRec").hidden = !on;
+  $("useRec").hidden = on || mode === "enc";
+  if (on) { $("key").value = ""; $("key").placeholder = "Se usará tu código de recuperación"; }
+  else $("key").placeholder = TEXT[mode].placeholder;
+  refresh();
+}
+$("useRec").onclick = () => setUseRec(true);
+$("cancelRec").onclick = () => { setUseRec(false); $("key").focus(); };
+
+// --- Archivo ---
+function setFile(f) {
+  file = f || null;
+  $("drop").classList.toggle("has-file", !!file);
+  if (file) {
+    $("dropText").innerHTML = `<strong></strong><br><small>${fmtSize(file.size)} · haz clic para cambiarlo</small>`;
+    $("dropText").querySelector("strong").textContent = file.name;
+  } else {
+    $("dropText").innerHTML = "<strong>Arrastra un archivo aquí</strong><br><small>o haz clic para elegirlo</small>";
+    $("file").value = "";
+  }
+  setMsg("");
+  refresh();
+}
+$("file").onchange = e => setFile(e.target.files[0]);
+const drop = $("drop");
+drop.ondragover = e => { e.preventDefault(); drop.classList.add("over"); };
+drop.ondragleave = () => drop.classList.remove("over");
+drop.ondrop = e => { e.preventDefault(); drop.classList.remove("over"); setFile(e.dataTransfer.files[0]); };
+
+// --- Clave ---
+$("key").oninput = refresh;
+$("key").onkeydown = e => { if (e.key === "Enter" && !$("run").disabled) $("run").click(); };
+$("gen").onclick = () => { $("key").value = generateKey(); refresh(); };
+$("copy").onclick = e => copyText($("key").value, e.currentTarget);
+$("copyResult").onclick = e => copyText(lastKey, e.currentTarget);
+
+async function copyText(text, btn) {
+  if (!text) return;
+  const label = btn.querySelector("span"), old = label.textContent;
+  try { await navigator.clipboard.writeText(text); label.textContent = "Copiada"; }
+  catch { label.textContent = "No se pudo"; }
+  setTimeout(() => label.textContent = old, 1500);
+}
+
+function password() { return mode === "dec" && useRec ? rec : $("key").value; }
+let sameShown = false;
+function refresh() {
+  const pw = clean(password());
+  const same = !!(mode === "enc" && pw && pw === clean(rec));
+  $("run").disabled = !file || !pw || same;
+  // La clave no puede ser igual al código de recuperación (no se revela por qué)
+  if (same) setMsg("Esa clave no se puede usar. Elige otra.", "err");
+  else if (sameShown) setMsg("");
+  sameShown = same;
+}
+function setMsg(t, cls = "") { $("msg").textContent = t; $("msg").className = "msg " + cls; }
+function setBusy(on) {
+  const b = $("run");
+  if (on) { b.dataset.busy = "1"; b.disabled = true; b.innerHTML = I("spinner", "spin") + "Procesando…"; }
+  else { delete b.dataset.busy; b.textContent = TEXT[mode].run; refresh(); }
+}
+
+// --- Acción principal ---
+$("run").onclick = async () => {
+  if (!window.crypto?.subtle)
+    return setMsg("Tu navegador bloquea el cifrado aquí. Abre la app desde https o instalada.", "err");
+  setBusy(true); setMsg("");
+  try {
+    const data = new Uint8Array(await file.arrayBuffer());
+    if (mode === "enc") {
+      const out = await encrypt(data, file.name, $("key").value, rec);
+      const outName = file.name + ".protegido.html";
+      download(enc(buildProtectedPage(file.name, file.size, out)), outName, "text/html");
+      lastKey = clean($("key").value);
+      lastGuide = buildGuide(file.name);
+      $("resultName").textContent = "Se descargó " + outName;
+      $("form").hidden = true; $("result").hidden = false;
+    } else {
+      const { name, bytes, via } = await decrypt(extractPayload(data), password());
+      download(bytes, name);
+      setMsg(`Listo. Se descargó "${name}"` + (via === "la clave" ? "." : " (abierto con tu código de recuperación)."), "ok");
+    }
+  } catch (e) {
+    setMsg(useRec && /clave no es correcta/.test(e.message)
+      ? "Tu código de recuperación no abre este archivo. Fue protegido con otro código."
+      : e.message || "Ocurrió un error.", "err");
+  } finally { setBusy(false); }
+};
+$("againBtn").onclick = () => setMode("enc");
+$("guideBtn").onclick = () => lastGuide && download(enc(lastGuide.text), lastGuide.name);
+
+// Acepta un archivo protegido (.html) o un .enc
+function extractPayload(data) {
+  if (data[0] === 0x3c) { // "<"
+    const m = new TextDecoder().decode(data).match(/<script id="payload"[^>]*>([A-Za-z0-9+/=\s]*)<\/script>/);
+    if (m) return b64dec(m[1]);
+  }
+  return data;
+}
+
+// --- Configuración: código de recuperación ---
+function renderSettings() {
+  $("rec").value = rec;
+  $("rec").type = "password"; $("rec").readOnly = true;
+  $("recEye").querySelector("span").textContent = "Mostrar";
+  const saved = store.get(KIT_KEY) === "1";
+  $("kitStatus").className = "status" + (saved ? "" : " pending");
+  $("kitStatus").innerHTML = I(saved ? "check" : "x") + (saved ? "Kit de recuperación descargado" : "Aún no descargas el kit de recuperación");
+  $("kitBanner").hidden = saved;
+}
+$("recEye").onclick = () => {
+  const show = $("rec").type === "password";
+  $("rec").type = show ? "text" : "password";
+  $("recEye").querySelector("span").textContent = show ? "Ocultar" : "Mostrar";
+};
+$("recCopy").onclick = e => copyText(rec, e.currentTarget);
+$("kitBtn").onclick = $("bannerKit").onclick = () => {
+  download(enc(buildKit(rec)), "Encriptador - kit de recuperacion.txt");
+  store.set(KIT_KEY, "1");
+  renderSettings();
+};
+$("newRec").onclick = () => {
+  if (!confirm("¿Generar un código de recuperación nuevo?\n\nLos archivos ya protegidos solo se podrán recuperar con el código anterior (guárdalo si lo necesitas). Deberás descargar un kit nuevo.")) return;
+  saveRec(generateKey(32));
+};
+$("editRec").onclick = () => {
+  const v = prompt("Pega el código de recuperación que quieres usar (mínimo 12 caracteres):");
+  if (v === null) return;
+  if (clean(v).length < 12) return alert("El código es muy corto. Debe tener al menos 12 caracteres.");
+  saveRec(clean(v));
+};
+function saveRec(v) {
+  rec = v;
+  store.set(REC_KEY, rec); store.set(KIT_KEY, "");
+  renderSettings(); refresh();
+}
+
+// --- Diálogos ---
+$("settingsBtn").onclick = () => { renderSettings(); $("settings").showModal(); };
+$("helpBtn").onclick = () => $("help").showModal();
+document.querySelectorAll("dialog").forEach(d => {
+  d.onclick = e => { if (e.target === d || e.target.closest("[data-close]")) d.close(); };
+  d.addEventListener("close", () => { if (d.id === "settings") { $("rec").type = "password"; } });
+});
+
+// --- Instalación (PWA) ---
+let installEvent = null;
+addEventListener("beforeinstallprompt", e => { e.preventDefault(); installEvent = e; $("installBtn").hidden = false; });
+addEventListener("appinstalled", () => { installEvent = null; $("installBtn").hidden = true; });
+$("installBtn").onclick = async () => {
+  if (!installEvent) return $("help").showModal();
+  installEvent.prompt();
+  await installEvent.userChoice;
+  installEvent = null; $("installBtn").hidden = true;
+};
+if ("serviceWorker" in navigator && location.protocol.startsWith("http"))
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+
+// --- Textos y archivos generados ---
+const esc = s => s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+const fmtSize = n => n < 1024 * 1024 ? (n / 1024).toFixed(1) + " KB" : (n / 1024 / 1024).toFixed(1) + " MB";
+
+// Archivo .html autocontenido: instrucciones + campo de clave + datos cifrados
+function buildProtectedPage(name, size, bytes) {
+  const n = esc(name);
+  return `<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Archivo protegido</title>
+<style>${$("styles").textContent}</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">${I("lock")}</span>
+      <div><b>Archivo protegido</b><small>${n} · ${fmtSize(size)}</small></div>
+    </div>
+  </header>
+  <section class="panel">
+    <div class="step"><span class="num">${I("help")}</span><h2>Cómo abrirlo</h2></div>
+    <ol class="steps">
+      <li>Escribe la clave que te entregaron (por teléfono, WhatsApp u otro medio).</li>
+      <li>Pulsa <strong>Abrir archivo</strong>.</li>
+      <li>Se descargará <strong>${n}</strong>, listo para abrir. Búscalo en tu carpeta de Descargas.</li>
+    </ol>
+    <div class="step"><span class="num">${I("key")}</span><h2>Clave</h2></div>
+    <div class="input-wrap">
+      <input type="text" id="key" autocomplete="off" spellcheck="false" placeholder="Escribe la clave" aria-label="Clave" autofocus>
+    </div>
+    <button class="btn btn-primary btn-block" id="run" disabled>${I("unlock")}Abrir archivo</button>
+    <div class="msg" id="msg" role="status"></div>
+    <p class="warn"><strong>Importante:</strong> si olvidas la clave, el archivo no se podrá abrir. Nadie puede recuperarla; pide a quien te lo envió que lo vuelva a enviar.</p>
+  </section>
+  <footer>
+    <span>${I("shield")}AES-256</span>
+    <span>${I("offline")}Funciona sin internet</span>
+    <span>${I("lock")}Nada sale de tu equipo</span>
+  </footer>
+</div>
+<script id="payload" type="application/octet-stream">${b64enc(bytes)}<\/script>
+<script>${$("core").textContent}
+${$("viewer").textContent}<\/script>
+</body>
+</html>
+`;
+}
+
+function buildKit(code) {
+  const date = new Date().toLocaleString("es-CL");
+  return `KIT DE RECUPERACIÓN — Encriptador\r\n\r\n` +
+    `Fecha: ${date}\r\n\r\n` +
+    `Código de recuperación:\r\n\r\n    ${code}\r\n\r\n` +
+    `Este código abre cualquier archivo que hayas protegido con el Encriptador\r\n` +
+    `mientras este código estaba activo, aunque se pierda su clave.\r\n\r\n` +
+    `CÓMO USARLO\r\n\r\n` +
+    `  - Abre el archivo protegido (.protegido.html) con doble clic\r\n` +
+    `    y escribe este código en lugar de la clave.\r\n` +
+    `  - O en la app: Abrir → "Olvidé la clave: usar mi código de recuperación".\r\n` +
+    `  - En otro equipo: Configuración → "Usar un código existente" y pega este código.\r\n\r\n` +
+    `Guarda este documento en un lugar seguro y distinto a tus archivos protegidos.\r\n` +
+    `Quien tenga este código puede abrir tus archivos.\r\n`;
+}
+
+function buildGuide(name) {
+  return {
+    name: name + ".INSTRUCTIVO.txt",
+    text: `INSTRUCTIVO — Cómo abrir el archivo protegido\r\n\r\n` +
+      `Recibiste el archivo:  ${name}.protegido.html\r\n` +
+      `Está protegido con una clave que te entregarán por otro medio.\r\n\r\n` +
+      `PASOS\r\n\r\n` +
+      `  1. Descarga el archivo "${name}.protegido.html" en tu computador.\r\n` +
+      `  2. Ábrelo con doble clic (se abre en tu navegador).\r\n` +
+      `  3. Escribe la clave y pulsa "Abrir archivo".\r\n` +
+      `  4. Se descargará "${name}", listo para abrir.\r\n\r\n` +
+      `IMPORTANTE\r\n\r\n` +
+      `  Si olvidas la clave, el archivo no se podrá abrir.\r\n` +
+      `  Guárdala en un lugar seguro y no la compartas.\r\n` +
+      `  Si la pierdes, pide a quien te envió el archivo que lo vuelva a enviar.\r\n`
+  };
+}
+
+setMode("enc");
+renderSettings();
+</script>
+</body>
+</html>
